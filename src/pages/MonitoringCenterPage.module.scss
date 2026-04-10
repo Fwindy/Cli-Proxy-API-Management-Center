@@ -440,6 +440,8 @@
 }
 
 .middleGrid > :global(.card) {
+  display: flex;
+  flex-direction: column;
   height: 520px;
   overflow: hidden;
 

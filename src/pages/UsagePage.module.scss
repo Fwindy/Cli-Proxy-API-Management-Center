@@ -599,8 +599,10 @@
 // Pricing Section (80%比例)
 .pricingSection {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 16px;
+  min-height: 0;
 }
 
 .priceForm {
@@ -652,8 +654,11 @@
 
 .pricesList {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 10px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .pricesTitle {
@@ -665,8 +670,14 @@
 
 .pricesGrid {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   gap: 6px;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
 }
 
 .priceItem {
