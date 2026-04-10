@@ -116,6 +116,7 @@
     "oauth": "OAuth вход",
     "quota_management": "Управление квотами",
     "usage_stats": "Статистика использования",
+    "monitoring_center": "Центр мониторинга",
     "config_management": "Панель конфигурации",
     "logs": "Просмотр логов",
     "system_info": "Информация системы"
@@ -1026,6 +1027,8 @@
     "request_events_source": "Источник",
     "request_events_auth_index": "Auth Index",
     "request_events_result": "Результат",
+    "request_events_latency": "Задержка",
+    "request_events_tps": "TPS",
     "request_events_empty_title": "События запросов отсутствуют",
     "request_events_empty_desc": "Нет деталей запросов для выбранного диапазона времени.",
     "request_events_no_result_title": "Совпадений не найдено",
@@ -1035,6 +1038,24 @@
     "input_tokens": "Входные токены",
     "output_tokens": "Выходные токены",
     "last_updated": "Обновлено"
+  },
+  "monitoring_center": {
+    "title": "Центр мониторинга",
+    "combined_trend_title": "Тренд запросов и токенов",
+    "model_distribution_title": "Распределение использования моделей",
+    "metric_requests": "По запросам",
+    "metric_tokens": "По токенам",
+    "share_label": "Доля",
+    "others_label": "Прочие",
+    "credential_cost_5h": "Стоимость за 5 ч",
+    "credential_cost_7d": "Стоимость за 7 д",
+    "credential_filter_type": "Тип ключа",
+    "credential_search_label": "Имя ключа",
+    "credential_search_placeholder": "Поиск по имени ключа",
+    "credential_no_result_title": "Совпадающие ключи не найдены",
+    "credential_no_result_desc": "Попробуйте изменить фильтр или поисковый запрос.",
+    "auto_refresh": "Автообновление",
+    "auto_refresh_off": "Выкл"
   },
   "stats": {
     "success": "Успех",

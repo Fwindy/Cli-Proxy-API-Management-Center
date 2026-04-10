@@ -116,6 +116,7 @@
     "oauth": "OAuth Login",
     "quota_management": "Quota Management",
     "usage_stats": "Usage Statistics",
+    "monitoring_center": "Monitoring Center",
     "config_management": "Config Panel",
     "logs": "Logs Viewer",
     "system_info": "Management Center Info"
@@ -1023,6 +1024,8 @@
     "request_events_source": "Source",
     "request_events_auth_index": "Auth Index",
     "request_events_result": "Result",
+    "request_events_latency": "Latency",
+    "request_events_tps": "TPS",
     "request_events_empty_title": "No request events",
     "request_events_empty_desc": "No request details are available for the selected time range.",
     "request_events_no_result_title": "No matching events",
@@ -1032,6 +1035,24 @@
     "input_tokens": "Input Tokens",
     "output_tokens": "Output Tokens",
     "last_updated": "Updated"
+  },
+  "monitoring_center": {
+    "title": "Monitoring Center",
+    "combined_trend_title": "Requests and Token Trends",
+    "model_distribution_title": "Model Usage Distribution",
+    "metric_requests": "By Requests",
+    "metric_tokens": "By Tokens",
+    "share_label": "Share",
+    "others_label": "Others",
+    "credential_cost_5h": "5h Cost",
+    "credential_cost_7d": "7d Cost",
+    "credential_filter_type": "Credential Type",
+    "credential_search_label": "Credential Name",
+    "credential_search_placeholder": "Search credential name",
+    "credential_no_result_title": "No matching credentials",
+    "credential_no_result_desc": "Try adjusting the filters or search keyword.",
+    "auto_refresh": "Auto Refresh",
+    "auto_refresh_off": "Off"
   },
   "stats": {
     "success": "Success",

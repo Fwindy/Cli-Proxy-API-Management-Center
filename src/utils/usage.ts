@@ -39,6 +39,7 @@ export interface UsageDetail {
   timestamp: string;
   source: string;
   auth_index: number;
+  latency_ms?: number;
   tokens: {
     input_tokens: number;
     output_tokens: number;
@@ -491,10 +492,12 @@ export function collectUsageDetails(usageData: unknown): UsageDetail[] {
         const timestamp = detailRaw.timestamp;
         const timestampMs = Date.parse(timestamp);
         const tokensRaw = isRecord(detailRaw.tokens) ? detailRaw.tokens : {};
+        const latencyMsRaw = Number(detailRaw.latency_ms);
         details.push({
           timestamp,
           source: normalizeSource(detailRaw.source),
           auth_index: detailRaw.auth_index as unknown as number,
+          latency_ms: Number.isFinite(latencyMsRaw) && latencyMsRaw >= 0 ? latencyMsRaw : undefined,
           tokens: tokensRaw as unknown as UsageDetail['tokens'],
           failed: detailRaw.failed === true,
           __modelName: modelName,
@@ -562,10 +565,12 @@ export function collectUsageDetailsWithEndpoint(usageData: unknown): UsageDetail
         const timestamp = detailRaw.timestamp;
         const timestampMs = Date.parse(timestamp);
         const tokensRaw = isRecord(detailRaw.tokens) ? detailRaw.tokens : {};
+        const latencyMsRaw = Number(detailRaw.latency_ms);
         details.push({
           timestamp,
           source: normalizeSource(detailRaw.source),
           auth_index: detailRaw.auth_index as unknown as number,
+          latency_ms: Number.isFinite(latencyMsRaw) && latencyMsRaw >= 0 ? latencyMsRaw : undefined,
           tokens: tokensRaw as unknown as UsageDetail['tokens'],
           failed: detailRaw.failed === true,
           __modelName: modelName,
@@ -1115,6 +1120,12 @@ export interface ChartData {
   datasets: ChartDataset[];
 }
 
+export interface UsageTotalsTrendData {
+  labels: string[];
+  requestSeries: number[];
+  tokenSeries: number[];
+}
+
 const CHART_COLORS = [
   { borderColor: '#8b8680', backgroundColor: 'rgba(139, 134, 128, 0.15)' },
   { borderColor: '#22c55e', backgroundColor: 'rgba(34, 197, 94, 0.15)' },
@@ -1220,6 +1231,37 @@ export function buildChartData(
   });
 
   return { labels, datasets };
+}
+
+const sumModelSeries = (dataByModel: Map<string, number[]>, length: number): number[] => {
+  const totals = new Array(length).fill(0);
+  dataByModel.forEach((values) => {
+    values.forEach((value, index) => {
+      totals[index] = (totals[index] || 0) + value;
+    });
+  });
+  return totals;
+};
+
+export function buildUsageTotalsTrend(
+  usageData: unknown,
+  period: 'hour' | 'day' = 'day',
+  options: { hourWindowHours?: number } = {}
+): UsageTotalsTrendData {
+  const requestBase =
+    period === 'hour'
+      ? buildHourlySeriesByModel(usageData, 'requests', options.hourWindowHours)
+      : buildDailySeriesByModel(usageData, 'requests');
+  const tokenBase =
+    period === 'hour'
+      ? buildHourlySeriesByModel(usageData, 'tokens', options.hourWindowHours)
+      : buildDailySeriesByModel(usageData, 'tokens');
+
+  return {
+    labels: requestBase.labels,
+    requestSeries: sumModelSeries(requestBase.dataByModel, requestBase.labels.length),
+    tokenSeries: sumModelSeries(tokenBase.dataByModel, tokenBase.labels.length)
+  };
 }
 
 /**

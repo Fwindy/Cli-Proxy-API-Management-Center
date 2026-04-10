@@ -1,0 +1,97 @@
+name: Sync Upstream
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync-upstream:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: sync-upstream-main
+      cancel-in-progress: false
+
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          ref: main
+
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/router-for-me/Cli-Proxy-API-Management-Center || git remote set-url upstream https://github.com/router-for-me/Cli-Proxy-API-Management-Center
+
+      - name: Fetch upstream main
+        run: git fetch upstream main --tags
+
+      - name: Merge upstream main
+        id: merge
+        run: |
+          set -euo pipefail
+          before_sha="$(git rev-parse HEAD)"
+          git merge --no-edit upstream/main
+          after_sha="$(git rev-parse HEAD)"
+
+          if [ "$before_sha" = "$after_sha" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Generate release metadata
+        if: steps.merge.outputs.changed == 'true'
+        id: release_meta
+        run: |
+          set -euo pipefail
+          timestamp="$(date -u +'%Y%m%d-%H%M%S')"
+          short_sha="$(git rev-parse --short HEAD)"
+          tag="auto-sync-${timestamp}-${short_sha}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Node.js
+        if: steps.merge.outputs.changed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        if: steps.merge.outputs.changed == 'true'
+        run: npm ci
+
+      - name: Build all-in-one HTML
+        if: steps.merge.outputs.changed == 'true'
+        run: npm run build
+        env:
+          VERSION: ${{ steps.release_meta.outputs.tag }}
+
+      - name: Prepare release assets
+        if: steps.merge.outputs.changed == 'true'
+        run: |
+          cd dist
+          mv index.html management.html
+          ls -lh management.html
+
+      - name: Push merged changes
+        if: steps.merge.outputs.changed == 'true'
+        run: git push origin HEAD:main
+
+      - name: Create release
+        if: steps.merge.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.release_meta.outputs.tag }}" dist/management.html \
+            --target "$(git rev-parse HEAD)" \
+            --title "${{ steps.release_meta.outputs.tag }}" \
+            --generate-notes

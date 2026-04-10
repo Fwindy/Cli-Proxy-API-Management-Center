@@ -116,6 +116,7 @@
     "oauth": "OAuth 登录",
     "quota_management": "配额管理",
     "usage_stats": "使用统计",
+    "monitoring_center": "监控中心",
     "config_management": "配置面板",
     "logs": "日志查看",
     "system_info": "中心信息"
@@ -1023,6 +1024,8 @@
     "request_events_source": "来源",
     "request_events_auth_index": "认证索引",
     "request_events_result": "结果",
+    "request_events_latency": "耗时",
+    "request_events_tps": "TPS",
     "request_events_empty_title": "暂无请求事件",
     "request_events_empty_desc": "当前时间范围内暂无可用的请求明细数据。",
     "request_events_no_result_title": "没有匹配结果",
@@ -1032,6 +1035,24 @@
     "input_tokens": "输入 Tokens",
     "output_tokens": "输出 Tokens",
     "last_updated": "更新于"
+  },
+  "monitoring_center": {
+    "title": "监控中心",
+    "combined_trend_title": "请求与 Token 趋势",
+    "model_distribution_title": "模型用量分布",
+    "metric_requests": "按请求统计",
+    "metric_tokens": "按 Token 统计",
+    "share_label": "占比",
+    "others_label": "其它",
+    "credential_cost_5h": "5小时花费",
+    "credential_cost_7d": "7天花费",
+    "credential_filter_type": "凭证类型",
+    "credential_search_label": "凭证名称",
+    "credential_search_placeholder": "搜索凭证名称",
+    "credential_no_result_title": "没有匹配的凭证",
+    "credential_no_result_desc": "请尝试调整筛选条件或搜索关键词。",
+    "auto_refresh": "自动刷新",
+    "auto_refresh_off": "关闭"
   },
   "stats": {
     "success": "成功",

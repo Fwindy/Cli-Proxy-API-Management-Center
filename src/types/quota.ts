@@ -236,6 +236,9 @@ export interface CodexQuotaWindow {
   labelParams?: Record<string, string | number>;
   usedPercent: number | null;
   resetLabel: string;
+  resetAtUnix?: number | null;
+  windowSeconds?: number | null;
+  windowKind?: 'five-hour' | 'weekly' | 'other';
 }
 
 export interface CodexQuotaState {

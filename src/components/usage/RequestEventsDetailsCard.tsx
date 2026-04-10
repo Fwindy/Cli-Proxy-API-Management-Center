@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Select } from '@/components/ui/Select';
+import { useInterval } from '@/hooks/useInterval';
 import { authFilesApi } from '@/services/api/authFiles';
 import type { GeminiKeyConfig, ProviderKeyConfig, OpenAIProviderConfig } from '@/types';
 import type { AuthFileItem } from '@/types/authFile';
@@ -31,6 +32,8 @@ type RequestEventRow = {
   sourceType: string;
   authIndex: string;
   failed: boolean;
+  latencyMs: number | null;
+  tps: number | null;
   inputTokens: number;
   outputTokens: number;
   reasoningTokens: number;
@@ -46,7 +49,18 @@ export interface RequestEventsDetailsCardProps {
   codexConfigs: ProviderKeyConfig[];
   vertexConfigs: ProviderKeyConfig[];
   openaiProviders: OpenAIProviderConfig[];
+  onRefresh?: () => Promise<void> | void;
 }
+
+const AUTO_REFRESH_OFF = 'off';
+const AUTO_REFRESH_INTERVALS = {
+  '15s': 15_000,
+  '30s': 30_000,
+  '1m': 60_000,
+  '5m': 300_000,
+} as const;
+
+type AutoRefreshValue = keyof typeof AUTO_REFRESH_INTERVALS | typeof AUTO_REFRESH_OFF;
 
 const toNumber = (value: unknown): number => {
   const parsed = Number(value);
@@ -68,13 +82,15 @@ export function RequestEventsDetailsCard({
   claudeConfigs,
   codexConfigs,
   vertexConfigs,
-  openaiProviders
+  openaiProviders,
+  onRefresh
 }: RequestEventsDetailsCardProps) {
   const { t, i18n } = useTranslation();
 
   const [modelFilter, setModelFilter] = useState(ALL_FILTER);
   const [sourceFilter, setSourceFilter] = useState(ALL_FILTER);
   const [authIndexFilter, setAuthIndexFilter] = useState(ALL_FILTER);
+  const [autoRefreshValue, setAutoRefreshValue] = useState<AutoRefreshValue>(AUTO_REFRESH_OFF);
   const [authFileMap, setAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
 
   useEffect(() => {
@@ -114,6 +130,26 @@ export function RequestEventsDetailsCard({
     [claudeConfigs, codexConfigs, geminiKeys, openaiProviders, vertexConfigs]
   );
 
+  const autoRefreshOptions = useMemo(
+    () => [
+      { value: AUTO_REFRESH_OFF, label: t('monitoring_center.auto_refresh_off') },
+      { value: '15s', label: '15s' },
+      { value: '30s', label: '30s' },
+      { value: '1m', label: '1m' },
+      { value: '5m', label: '5m' }
+    ],
+    [t]
+  );
+  const autoRefreshDelay =
+    onRefresh && autoRefreshValue !== AUTO_REFRESH_OFF
+      ? AUTO_REFRESH_INTERVALS[autoRefreshValue]
+      : null;
+
+  useInterval(() => {
+    if (!onRefresh || loading) return;
+    void onRefresh();
+  }, autoRefreshDelay);
+
   const rows = useMemo<RequestEventRow[]>(() => {
     const details = collectUsageDetails(usage);
 
@@ -146,6 +182,9 @@ export function RequestEventsDetailsCard({
           toNumber(detail.tokens?.total_tokens),
           extractTotalTokens(detail)
         );
+        const latencyMsRaw = toNumber(detail.latency_ms);
+        const latencyMs = latencyMsRaw > 0 ? latencyMsRaw : null;
+        const tps = latencyMs ? outputTokens / (latencyMs / 1000) : null;
 
         return {
           id: `${timestamp}-${model}-${sourceRaw || source}-${authIndex}-${index}`,
@@ -158,6 +197,8 @@ export function RequestEventsDetailsCard({
           sourceType,
           authIndex,
           failed: detail.failed === true,
+          latencyMs,
+          tps,
           inputTokens,
           outputTokens,
           reasoningTokens,
@@ -258,6 +299,8 @@ export function RequestEventsDetailsCard({
       'source_raw',
       'auth_index',
       'result',
+      'latency_ms',
+      'tps',
       'input_tokens',
       'output_tokens',
       'reasoning_tokens',
@@ -273,6 +316,8 @@ export function RequestEventsDetailsCard({
         row.sourceRaw,
         row.authIndex,
         row.failed ? 'failed' : 'success',
+        row.latencyMs ?? '',
+        row.tps !== null ? row.tps.toFixed(2) : '',
         row.inputTokens,
         row.outputTokens,
         row.reasoningTokens,
@@ -301,6 +346,8 @@ export function RequestEventsDetailsCard({
       source_raw: row.sourceRaw,
       auth_index: row.authIndex,
       failed: row.failed,
+      latency_ms: row.latencyMs,
+      tps: row.tps,
       tokens: {
         input_tokens: row.inputTokens,
         output_tokens: row.outputTokens,
@@ -390,6 +437,19 @@ export function RequestEventsDetailsCard({
             fullWidth={false}
           />
         </div>
+        {onRefresh && (
+          <div className={styles.requestEventsFilterItem}>
+            <span className={styles.requestEventsFilterLabel}>{t('monitoring_center.auto_refresh')}</span>
+            <Select
+              value={autoRefreshValue}
+              options={autoRefreshOptions}
+              onChange={(value) => setAutoRefreshValue(value as AutoRefreshValue)}
+              className={styles.requestEventsSelect}
+              ariaLabel={t('monitoring_center.auto_refresh')}
+              fullWidth={false}
+            />
+          </div>
+        )}
       </div>
 
       {loading && rows.length === 0 ? (
@@ -427,6 +487,8 @@ export function RequestEventsDetailsCard({
                   <th>{t('usage_stats.request_events_source')}</th>
                   <th>{t('usage_stats.request_events_auth_index')}</th>
                   <th>{t('usage_stats.request_events_result')}</th>
+                  <th>{t('usage_stats.request_events_latency')}</th>
+                  <th>{t('usage_stats.request_events_tps')}</th>
                   <th>{t('usage_stats.input_tokens')}</th>
                   <th>{t('usage_stats.output_tokens')}</th>
                   <th>{t('usage_stats.reasoning_tokens')}</th>
@@ -457,6 +519,8 @@ export function RequestEventsDetailsCard({
                         {row.failed ? t('stats.failure') : t('stats.success')}
                       </span>
                     </td>
+                    <td>{row.latencyMs !== null ? `${(row.latencyMs / 1000).toFixed(2)} s` : '--'}</td>
+                    <td>{row.tps !== null ? row.tps.toFixed(2) : '--'}</td>
                     <td>{row.inputTokens.toLocaleString()}</td>
                     <td>{row.outputTokens.toLocaleString()}</td>
                     <td>{row.reasoningTokens.toLocaleString()}</td>
