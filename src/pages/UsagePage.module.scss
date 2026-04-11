@@ -526,6 +526,9 @@
     color: var(--text-tertiary);
     background-color: var(--bg-secondary);
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 2;
   }
 
   th.sortableHeader {
@@ -733,6 +736,82 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+// Price Sync Modal
+.syncModalBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.syncDesc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.syncFieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.syncFieldLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.syncFieldHint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-bottom: 2px;
+}
+
+.syncTextarea {
+  width: 100%;
+  min-height: 90px;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: $radius-sm;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+  box-sizing: border-box;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb, 59, 130, 246), 0.15);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.syncStatus {
+  font-size: 13px;
+  min-height: 20px;
+  line-height: 1.5;
+
+  &.syncStatusInfo {
+    color: var(--text-secondary);
+  }
+
+  &.syncStatusSuccess {
+    color: var(--success-color, #15803d);
+  }
+
+  &.syncStatusError {
+    color: var(--danger-color, #dc2626);
+  }
 }
 
 // Chart Section (80%比例)

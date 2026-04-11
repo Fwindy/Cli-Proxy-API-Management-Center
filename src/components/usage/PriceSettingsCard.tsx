@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useCallback, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -6,6 +6,16 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import type { ModelPrice } from '@/utils/usage';
+import {
+  loadSyncSettings,
+  saveSyncSettings,
+  sanitizeSyncSettings,
+  syncPrices,
+  parseLinesToList,
+  parseLinesToMappingList,
+  formatMappingListForTextarea,
+  type SyncSettings,
+} from '@/utils/priceSync';
 import styles from '@/pages/UsagePage.module.scss';
 
 export interface PriceSettingsCardProps {
@@ -13,6 +23,8 @@ export interface PriceSettingsCardProps {
   modelPrices: Record<string, ModelPrice>;
   onPricesChange: (prices: Record<string, ModelPrice>) => void;
 }
+
+type SyncStatusType = 'info' | 'success' | 'error';
 
 export function PriceSettingsCard({
   modelNames,
@@ -32,6 +44,15 @@ export function PriceSettingsCard({
   const [editPrompt, setEditPrompt] = useState('');
   const [editCompletion, setEditCompletion] = useState('');
   const [editCache, setEditCache] = useState('');
+
+  // Sync modal state
+  const [syncOpen, setSyncOpen] = useState(false);
+  const [syncPending, setSyncPending] = useState(false);
+  const [syncStatusMsg, setSyncStatusMsg] = useState('');
+  const [syncStatusType, setSyncStatusType] = useState<SyncStatusType>('info');
+  const [providerPriorityText, setProviderPriorityText] = useState('');
+  const [ignoredSuffixesText, setIgnoredSuffixesText] = useState('');
+  const [modelMappingsText, setModelMappingsText] = useState('');
 
   const handleSavePrice = () => {
     if (!selectedModel) return;
@@ -92,8 +113,111 @@ export function PriceSettingsCard({
     [modelNames, t]
   );
 
+  // ---- Sync modal handlers ----
+
+  const handleOpenSync = useCallback(() => {
+    const settings = loadSyncSettings();
+    setProviderPriorityText(settings.providerPriority.join('\n'));
+    setIgnoredSuffixesText(settings.ignoredModelNameSuffixes.join('\n'));
+    setModelMappingsText(formatMappingListForTextarea(settings.modelNameMappings));
+    setSyncStatusMsg('');
+    setSyncStatusType('info');
+    setSyncPending(false);
+    setSyncOpen(true);
+  }, []);
+
+  const collectSettingsFromInputs = useCallback((): SyncSettings => {
+    return sanitizeSyncSettings({
+      providerPriority: parseLinesToList(providerPriorityText),
+      ignoredModelNameSuffixes: parseLinesToList(ignoredSuffixesText),
+      modelNameMappings: parseLinesToMappingList(modelMappingsText),
+    });
+  }, [providerPriorityText, ignoredSuffixesText, modelMappingsText]);
+
+  const applySettingsToInputs = useCallback((s: SyncSettings) => {
+    setProviderPriorityText(s.providerPriority.join('\n'));
+    setIgnoredSuffixesText(s.ignoredModelNameSuffixes.join('\n'));
+    setModelMappingsText(formatMappingListForTextarea(s.modelNameMappings));
+  }, []);
+
+  const handleSaveSettingsOnly = useCallback(async () => {
+    if (syncPending) return;
+    setSyncPending(true);
+    setSyncStatusMsg(t('usage_stats.price_sync_status_saving'));
+    setSyncStatusType('info');
+    try {
+      const saved = saveSyncSettings(collectSettingsFromInputs());
+      applySettingsToInputs(saved);
+      setSyncStatusMsg(t('usage_stats.price_sync_status_saved'));
+      setSyncStatusType('success');
+    } catch (err) {
+      setSyncStatusMsg(err instanceof Error ? err.message : String(err));
+      setSyncStatusType('error');
+    } finally {
+      setSyncPending(false);
+    }
+  }, [syncPending, t, collectSettingsFromInputs, applySettingsToInputs]);
+
+  const handleSaveAndSync = useCallback(async () => {
+    if (syncPending) return;
+    setSyncPending(true);
+    setSyncStatusMsg(t('usage_stats.price_sync_status_fetching'));
+    setSyncStatusType('info');
+
+    try {
+      const saved = saveSyncSettings(collectSettingsFromInputs());
+      applySettingsToInputs(saved);
+
+      const result = await syncPrices(modelNames, saved);
+
+      if (result.matchedCount === 0) {
+        setSyncStatusMsg(t('usage_stats.price_sync_status_no_match'));
+        setSyncStatusType('error');
+        setSyncPending(false);
+        return;
+      }
+
+      // Merge synced prices into current prices
+      const merged = { ...modelPrices, ...result.prices };
+      onPricesChange(merged);
+
+      setSyncStatusMsg(
+        t('usage_stats.price_sync_status_success', {
+          matched: result.matchedCount,
+          total: result.totalModels,
+        }),
+      );
+      setSyncStatusType('success');
+    } catch (err) {
+      setSyncStatusMsg(err instanceof Error ? err.message : String(err));
+      setSyncStatusType('error');
+    } finally {
+      setSyncPending(false);
+    }
+  }, [
+    syncPending,
+    t,
+    collectSettingsFromInputs,
+    applySettingsToInputs,
+    modelNames,
+    modelPrices,
+    onPricesChange,
+  ]);
+
+  const syncStatusClass = syncStatusType === 'success'
+    ? `${styles.syncStatus} ${styles.syncStatusSuccess}`
+    : syncStatusType === 'error'
+      ? `${styles.syncStatus} ${styles.syncStatusError}`
+      : `${styles.syncStatus} ${styles.syncStatusInfo}`;
+
+  const syncButton = (
+    <Button variant="secondary" size="sm" onClick={handleOpenSync}>
+      {t('usage_stats.price_sync_button')}
+    </Button>
+  );
+
   return (
-    <Card title={t('usage_stats.model_price_settings')}>
+    <Card title={t('usage_stats.model_price_settings')} extra={syncButton}>
       <div className={styles.pricingSection}>
         {/* Price Form */}
         <div className={styles.priceForm}>
@@ -229,6 +353,106 @@ export function PriceSettingsCard({
               step="0.0001"
             />
           </div>
+        </div>
+      </Modal>
+
+      {/* Sync Modal */}
+      <Modal
+        open={syncOpen}
+        title={t('usage_stats.price_sync_title')}
+        onClose={() => !syncPending && setSyncOpen(false)}
+        closeDisabled={syncPending}
+        footer={
+          <div className={styles.priceActions}>
+            <Button
+              variant="secondary"
+              onClick={() => setSyncOpen(false)}
+              disabled={syncPending}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={handleSaveSettingsOnly}
+              disabled={syncPending}
+            >
+              {t('usage_stats.price_sync_save_settings')}
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSaveAndSync}
+              disabled={syncPending}
+              loading={syncPending}
+            >
+              {syncPending
+                ? t('usage_stats.price_sync_syncing')
+                : t('usage_stats.price_sync_save_and_sync')}
+            </Button>
+          </div>
+        }
+        width={540}
+      >
+        <div className={styles.syncModalBody}>
+          <p className={styles.syncDesc}>
+            {t('usage_stats.price_sync_desc')}
+          </p>
+
+          <div className={styles.syncFieldGroup}>
+            <label className={styles.syncFieldLabel}>
+              {t('usage_stats.price_sync_provider_priority')}
+            </label>
+            <span className={styles.syncFieldHint}>
+              {t('usage_stats.price_sync_provider_priority_hint')}
+            </span>
+            <textarea
+              className={styles.syncTextarea}
+              value={providerPriorityText}
+              onChange={(e) => setProviderPriorityText(e.target.value)}
+              disabled={syncPending}
+              placeholder={'openai\ngoogle\nanthropic'}
+              rows={4}
+            />
+          </div>
+
+          <div className={styles.syncFieldGroup}>
+            <label className={styles.syncFieldLabel}>
+              {t('usage_stats.price_sync_ignored_suffixes')}
+            </label>
+            <span className={styles.syncFieldHint}>
+              {t('usage_stats.price_sync_ignored_suffixes_hint')}
+            </span>
+            <textarea
+              className={styles.syncTextarea}
+              value={ignoredSuffixesText}
+              onChange={(e) => setIgnoredSuffixesText(e.target.value)}
+              disabled={syncPending}
+              placeholder={'-thinking\n-preview\n(thinking)'}
+              rows={4}
+            />
+          </div>
+
+          <div className={styles.syncFieldGroup}>
+            <label className={styles.syncFieldLabel}>
+              {t('usage_stats.price_sync_model_mappings')}
+            </label>
+            <span className={styles.syncFieldHint}>
+              {t('usage_stats.price_sync_model_mappings_hint')}
+            </span>
+            <textarea
+              className={styles.syncTextarea}
+              value={modelMappingsText}
+              onChange={(e) => setModelMappingsText(e.target.value)}
+              disabled={syncPending}
+              placeholder={'coder-model=qwen3.6-plus'}
+              rows={4}
+            />
+          </div>
+
+          {syncStatusMsg && (
+            <div className={syncStatusClass}>
+              {syncStatusMsg}
+            </div>
+          )}
         </div>
       </Modal>
     </Card>
