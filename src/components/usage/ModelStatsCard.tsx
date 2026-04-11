@@ -2,7 +2,6 @@ import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
 import {
-  LATENCY_SOURCE_FIELD,
   formatCompactNumber,
   formatDurationMs,
   formatUsd,
@@ -36,10 +35,6 @@ export function ModelStatsCard({ modelStats, loading, hasPrices }: ModelStatsCar
   const { t } = useTranslation();
   const [sortKey, setSortKey] = useState<SortKey>('requests');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
-  const latencyHint = t('usage_stats.latency_unit_hint', {
-    field: LATENCY_SOURCE_FIELD,
-    unit: t('usage_stats.duration_unit_ms'),
-  });
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -74,15 +69,12 @@ export function ModelStatsCard({ modelStats, loading, hasPrices }: ModelStatsCar
   const arrow = (key: SortKey) => (sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '');
   const ariaSort = (key: SortKey): 'none' | 'ascending' | 'descending' =>
     sortKey === key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none';
-  const hasLatencyData = sorted.some((stat) => stat.latencySampleCount > 0);
-
   return (
     <Card title={t('usage_stats.models')} className={styles.detailsFixedCard}>
       {loading ? (
         <div className={styles.hint}>{t('common.loading')}</div>
       ) : sorted.length > 0 ? (
         <>
-          {hasLatencyData && <div className={styles.detailsNote}>{latencyHint}</div>}
           <div className={styles.detailsScroll}>
             <div className={styles.tableWrapper}>
               <table className={styles.table}>
@@ -123,7 +115,6 @@ export function ModelStatsCard({ modelStats, loading, hasPrices }: ModelStatsCar
                         type="button"
                         className={styles.sortHeaderButton}
                         onClick={() => handleSort('averageLatencyMs')}
-                        title={latencyHint}
                       >
                         {t('usage_stats.avg_time')}
                         {arrow('averageLatencyMs')}
@@ -134,7 +125,6 @@ export function ModelStatsCard({ modelStats, loading, hasPrices }: ModelStatsCar
                         type="button"
                         className={styles.sortHeaderButton}
                         onClick={() => handleSort('totalLatencyMs')}
-                        title={latencyHint}
                       >
                         {t('usage_stats.total_time')}
                         {arrow('totalLatencyMs')}

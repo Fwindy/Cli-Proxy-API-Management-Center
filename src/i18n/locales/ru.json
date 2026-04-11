@@ -1067,7 +1067,7 @@
   },
   "monitoring_center": {
     "title": "Центр мониторинга",
-    "combined_trend_title": "Тренд запросов и токенов",
+    "combined_trend_title": "Тренд стоимости и токенов",
     "model_distribution_title": "Распределение использования моделей",
     "metric_requests": "По запросам",
     "metric_tokens": "По токенам",
@@ -1081,7 +1081,8 @@
     "credential_no_result_title": "Совпадающие ключи не найдены",
     "credential_no_result_desc": "Попробуйте изменить фильтр или поисковый запрос.",
     "auto_refresh": "Автообновление",
-    "auto_refresh_off": "Выкл"
+    "auto_refresh_off": "Выкл",
+    "auto_refresh_countdown": "Обновление через {{count}} с"
   },
   "stats": {
     "success": "Успех",

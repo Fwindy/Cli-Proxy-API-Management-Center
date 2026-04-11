@@ -995,8 +995,21 @@
   font-weight: 600;
 }
 
+.requestEventsFilterLabelRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 18px;
+}
+
 .requestEventsSelect {
   min-width: 180px;
+}
+
+.requestEventsCountdown {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
 }
 
 .requestEventsMeta {

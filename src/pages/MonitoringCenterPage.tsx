@@ -132,7 +132,13 @@ export function MonitoringCenterPage() {
   const nowMs = lastRefreshedAt?.getTime() ?? 0;
 
   const { requestsSparkline, tokensSparkline, rpmSparkline, tpmSparkline, costSparkline } =
-    useSparklines({ usage: filteredUsage as UsagePayload | null, loading, nowMs });
+    useSparklines({
+      usage: filteredUsage as UsagePayload | null,
+      loading,
+      nowMs,
+      timeRange,
+      modelPrices
+    });
 
   const modelNames = useMemo(() => getModelNamesFromUsage(usage), [usage]);
   const modelStats = useMemo<ModelStat[]>(() => getModelStats(filteredUsage, modelPrices), [filteredUsage, modelPrices]);
@@ -207,6 +213,7 @@ export function MonitoringCenterPage() {
           isDark={isDark}
           isMobile={isMobile}
           hourWindowHours={hourWindowHours}
+          modelPrices={modelPrices}
         />
         <ModelUsageDistributionCard
           modelStats={modelStats}
@@ -242,6 +249,7 @@ export function MonitoringCenterPage() {
           vertexConfigs={config?.vertexApiKeys || []}
           openaiProviders={config?.openaiCompatibility || []}
           onRefresh={loadUsage}
+          lastRefreshedAt={lastRefreshedAt}
         />
       </div>
     </div>

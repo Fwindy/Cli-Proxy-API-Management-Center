@@ -15,7 +15,6 @@ import {
   extractLatencyMs,
   extractTotalTokens,
   formatDurationMs,
-  LATENCY_SOURCE_FIELD,
   normalizeAuthIndex,
 } from '@/utils/usage';
 import { downloadBlob } from '@/utils/download';
@@ -53,6 +52,7 @@ export interface RequestEventsDetailsCardProps {
   vertexConfigs: ProviderKeyConfig[];
   openaiProviders: OpenAIProviderConfig[];
   onRefresh?: () => Promise<void> | void;
+  lastRefreshedAt?: Date | null;
 }
 
 const AUTO_REFRESH_OFF = 'off';
@@ -87,18 +87,17 @@ export function RequestEventsDetailsCard({
   vertexConfigs,
   openaiProviders,
   onRefresh,
+  lastRefreshedAt,
 }: RequestEventsDetailsCardProps) {
   const { t, i18n } = useTranslation();
-  const latencyHint = t('usage_stats.latency_unit_hint', {
-    field: LATENCY_SOURCE_FIELD,
-    unit: t('usage_stats.duration_unit_ms'),
-  });
 
   const [modelFilter, setModelFilter] = useState(ALL_FILTER);
   const [sourceFilter, setSourceFilter] = useState(ALL_FILTER);
   const [authIndexFilter, setAuthIndexFilter] = useState(ALL_FILTER);
   const [autoRefreshValue, setAutoRefreshValue] = useState<AutoRefreshValue>(AUTO_REFRESH_OFF);
   const [authFileMap, setAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
+  const [nextRefreshAtMs, setNextRefreshAtMs] = useState<number | null>(null);
+  const [countdownNowMs, setCountdownNowMs] = useState(() => Date.now());
 
   useEffect(() => {
     let cancelled = false;
@@ -152,10 +151,36 @@ export function RequestEventsDetailsCard({
       ? AUTO_REFRESH_INTERVALS[autoRefreshValue]
       : null;
 
+  useEffect(() => {
+    if (!autoRefreshDelay) {
+      setNextRefreshAtMs(null);
+      return;
+    }
+
+    const now = Date.now();
+    setCountdownNowMs(now);
+
+    const nextFromRefresh = lastRefreshedAt ? lastRefreshedAt.getTime() + autoRefreshDelay : null;
+    const nextRefreshAt =
+      nextFromRefresh && nextFromRefresh > now ? nextFromRefresh : now + autoRefreshDelay;
+
+    setNextRefreshAtMs(nextRefreshAt);
+  }, [autoRefreshDelay, lastRefreshedAt]);
+
   useInterval(() => {
-    if (!onRefresh || loading) return;
+    setCountdownNowMs(Date.now());
+  }, autoRefreshDelay ? 1000 : null);
+
+  useInterval(() => {
+    if (!onRefresh || loading || !autoRefreshDelay) return;
+    setNextRefreshAtMs(Date.now() + autoRefreshDelay);
     void onRefresh();
   }, autoRefreshDelay);
+
+  const autoRefreshCountdown =
+    autoRefreshDelay && nextRefreshAtMs
+      ? Math.max(0, Math.ceil((nextRefreshAtMs - countdownNowMs) / 1000))
+      : null;
 
   const rows = useMemo<RequestEventRow[]>(() => {
     const details = collectUsageDetails(usage);
@@ -451,7 +476,14 @@ export function RequestEventsDetailsCard({
         </div>
         {onRefresh && (
           <div className={styles.requestEventsFilterItem}>
-            <span className={styles.requestEventsFilterLabel}>{t('monitoring_center.auto_refresh')}</span>
+            <span className={styles.requestEventsFilterLabelRow}>
+              <span className={styles.requestEventsFilterLabel}>{t('monitoring_center.auto_refresh')}</span>
+              {autoRefreshCountdown !== null && (
+                <span className={styles.requestEventsCountdown}>
+                  {t('monitoring_center.auto_refresh_countdown', { count: autoRefreshCountdown })}
+                </span>
+              )}
+            </span>
             <Select
               value={autoRefreshValue}
               options={autoRefreshOptions}
@@ -480,7 +512,6 @@ export function RequestEventsDetailsCard({
         <>
           <div className={styles.requestEventsMeta}>
             <span>{t('usage_stats.request_events_count', { count: filteredRows.length })}</span>
-            {hasLatencyData && <span className={styles.requestEventsLimitHint}>{latencyHint}</span>}
             {filteredRows.length > MAX_RENDERED_EVENTS && (
               <span className={styles.requestEventsLimitHint}>
                 {t('usage_stats.request_events_limit_hint', {
@@ -500,7 +531,7 @@ export function RequestEventsDetailsCard({
                   <th>{t('usage_stats.request_events_source')}</th>
                   <th>{t('usage_stats.request_events_auth_index')}</th>
                   <th>{t('usage_stats.request_events_result')}</th>
-                  {hasLatencyData && <th title={latencyHint}>{t('usage_stats.time')}</th>}
+                  {hasLatencyData && <th>{t('usage_stats.time')}</th>}
                   {hasLatencyData && <th>{t('usage_stats.request_events_tps')}</th>}
                   <th>{t('usage_stats.input_tokens')}</th>
                   <th>{t('usage_stats.output_tokens')}</th>

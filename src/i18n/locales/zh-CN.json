@@ -1070,7 +1070,7 @@
   },
   "monitoring_center": {
     "title": "监控中心",
-    "combined_trend_title": "请求与 Token 趋势",
+    "combined_trend_title": "花费与 Token 趋势",
     "model_distribution_title": "模型用量分布",
     "metric_requests": "按请求统计",
     "metric_tokens": "按 Token 统计",
@@ -1084,7 +1084,8 @@
     "credential_no_result_title": "没有匹配的凭证",
     "credential_no_result_desc": "请尝试调整筛选条件或搜索关键词。",
     "auto_refresh": "自动刷新",
-    "auto_refresh_off": "关闭"
+    "auto_refresh_off": "关闭",
+    "auto_refresh_countdown": "{{count}} 秒后自动刷新"
   },
   "stats": {
     "success": "成功",

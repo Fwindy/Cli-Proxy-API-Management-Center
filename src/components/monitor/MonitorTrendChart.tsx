@@ -4,7 +4,7 @@ import { Chart } from 'react-chartjs-2';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { buildUsageTotalsTrend } from '@/utils/usage';
+import { buildUsageTotalsTrend, type ModelPrice } from '@/utils/usage';
 import { getHourChartMinWidth } from '@/utils/usage/chartConfig';
 import type { UsagePayload } from '@/components/usage';
 import styles from '@/pages/MonitoringCenterPage.module.scss';
@@ -15,6 +15,7 @@ export interface MonitorTrendChartProps {
   isDark: boolean;
   isMobile: boolean;
   hourWindowHours?: number;
+  modelPrices: Record<string, ModelPrice>;
 }
 
 export function MonitorTrendChart({
@@ -22,14 +23,15 @@ export function MonitorTrendChart({
   loading,
   isDark,
   isMobile,
-  hourWindowHours
+  hourWindowHours,
+  modelPrices
 }: MonitorTrendChartProps) {
   const { t } = useTranslation();
   const [period, setPeriod] = useState<'hour' | 'day'>('day');
 
   const trend = useMemo(
-    () => buildUsageTotalsTrend(usage, period, { hourWindowHours }),
-    [usage, period, hourWindowHours]
+    () => buildUsageTotalsTrend(usage, modelPrices, period, { hourWindowHours }),
+    [usage, modelPrices, period, hourWindowHours]
   );
 
   const chartData = useMemo<ChartData<'bar' | 'line'>>(
@@ -50,13 +52,13 @@ export function MonitorTrendChart({
         },
         {
           type: 'line' as const,
-          label: t('usage_stats.total_requests'),
-          data: trend.requestSeries,
-          yAxisID: 'yRequests',
-          borderColor: '#8b8680',
-          backgroundColor: 'rgba(139, 134, 128, 0.18)',
-          pointBackgroundColor: '#8b8680',
-          pointBorderColor: '#8b8680',
+          label: t('usage_stats.total_cost'),
+          data: trend.costSeries,
+          yAxisID: 'yCost',
+          borderColor: '#f59e0b',
+          backgroundColor: 'rgba(245, 158, 11, 0.18)',
+          pointBackgroundColor: '#f59e0b',
+          pointBorderColor: '#f59e0b',
           pointRadius: isMobile && period === 'hour' ? 0 : isMobile ? 2 : 3,
           pointHoverRadius: 4,
           tension: 0.35,
@@ -66,8 +68,19 @@ export function MonitorTrendChart({
         }
       ]
     }),
-    [isMobile, period, t, trend.labels, trend.requestSeries, trend.tokenSeries]
+    [isMobile, period, t, trend.costSeries, trend.labels, trend.tokenSeries]
   );
+
+  const formatCostValue = (value: number) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return '$0.0';
+    }
+    return `$${numeric.toLocaleString(undefined, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1
+    })}`;
+  };
 
   const chartOptions = useMemo<ChartOptions<'bar'>>(() => {
     const gridColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(17, 24, 39, 0.06)';
@@ -97,7 +110,17 @@ export function MonitorTrendChart({
           borderWidth: 1,
           padding: 10,
           displayColors: true,
-          usePointStyle: true
+          usePointStyle: true,
+          callbacks: {
+            label: (context) => {
+              const label = context.dataset.label || '';
+              const value = Number(context.parsed?.y ?? 0);
+              if (context.dataset.yAxisID === 'yCost') {
+                return `${label}: ${formatCostValue(value)}`;
+              }
+              return `${label}: ${value.toLocaleString()}`;
+            }
+          }
         }
       },
       scales: {
@@ -158,7 +181,7 @@ export function MonitorTrendChart({
             font: { size: tickFontSize }
           }
         },
-        yRequests: {
+        yCost: {
           beginAtZero: true,
           position: 'right',
           grid: {
@@ -169,7 +192,8 @@ export function MonitorTrendChart({
           },
           ticks: {
             color: tickColor,
-            font: { size: tickFontSize }
+            font: { size: tickFontSize },
+            callback: (value) => formatCostValue(Number(value))
           }
         }
       }

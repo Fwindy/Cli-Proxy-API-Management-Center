@@ -1070,7 +1070,7 @@
   },
   "monitoring_center": {
     "title": "Monitoring Center",
-    "combined_trend_title": "Requests and Token Trends",
+    "combined_trend_title": "Cost and Token Trends",
     "model_distribution_title": "Model Usage Distribution",
     "metric_requests": "By Requests",
     "metric_tokens": "By Tokens",
@@ -1084,7 +1084,8 @@
     "credential_no_result_title": "No matching credentials",
     "credential_no_result_desc": "Try adjusting the filters or search keyword.",
     "auto_refresh": "Auto Refresh",
-    "auto_refresh_off": "Off"
+    "auto_refresh_off": "Off",
+    "auto_refresh_countdown": "Refreshes in {{count}}s"
   },
   "stats": {
     "success": "Success",

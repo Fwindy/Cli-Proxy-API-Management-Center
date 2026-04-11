@@ -1239,6 +1239,7 @@ export interface UsageTotalsTrendData {
   labels: string[];
   requestSeries: number[];
   tokenSeries: number[];
+  costSeries: number[];
 }
 
 const CHART_COLORS = [
@@ -1365,8 +1366,24 @@ const sumModelSeries = (dataByModel: Map<string, number[]>, length: number): num
   return totals;
 };
 
+const alignSeriesToLabels = (
+  labels: string[],
+  source: { labels: string[]; data: number[] }
+): number[] => {
+  if (labels.length === source.labels.length && labels.every((label, index) => label === source.labels[index])) {
+    return source.data;
+  }
+
+  const valueByLabel = new Map<string, number>();
+  source.labels.forEach((label, index) => {
+    valueByLabel.set(label, source.data[index] || 0);
+  });
+  return labels.map((label) => valueByLabel.get(label) || 0);
+};
+
 export function buildUsageTotalsTrend(
   usageData: unknown,
+  modelPrices: Record<string, ModelPrice>,
   period: 'hour' | 'day' = 'day',
   options: { hourWindowHours?: number } = {}
 ): UsageTotalsTrendData {
@@ -1378,11 +1395,16 @@ export function buildUsageTotalsTrend(
     period === 'hour'
       ? buildHourlySeriesByModel(usageData, 'tokens', options.hourWindowHours)
       : buildDailySeriesByModel(usageData, 'tokens');
+  const costBase =
+    period === 'hour'
+      ? buildHourlyCostSeries(usageData, modelPrices, options.hourWindowHours)
+      : buildDailyCostSeries(usageData, modelPrices);
 
   return {
     labels: requestBase.labels,
     requestSeries: sumModelSeries(requestBase.dataByModel, requestBase.labels.length),
-    tokenSeries: sumModelSeries(tokenBase.dataByModel, tokenBase.labels.length)
+    tokenSeries: sumModelSeries(tokenBase.dataByModel, tokenBase.labels.length),
+    costSeries: alignSeriesToLabels(requestBase.labels, costBase)
   };
 }
 
