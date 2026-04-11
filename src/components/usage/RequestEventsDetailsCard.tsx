@@ -12,8 +12,11 @@ import type { CredentialInfo } from '@/types/sourceInfo';
 import { buildSourceInfoMap, resolveSourceDisplay } from '@/utils/sourceResolver';
 import {
   collectUsageDetails,
+  extractLatencyMs,
   extractTotalTokens,
-  normalizeAuthIndex
+  formatDurationMs,
+  LATENCY_SOURCE_FIELD,
+  normalizeAuthIndex,
 } from '@/utils/usage';
 import { downloadBlob } from '@/utils/download';
 import styles from '@/pages/UsagePage.module.scss';
@@ -83,9 +86,13 @@ export function RequestEventsDetailsCard({
   codexConfigs,
   vertexConfigs,
   openaiProviders,
-  onRefresh
+  onRefresh,
 }: RequestEventsDetailsCardProps) {
   const { t, i18n } = useTranslation();
+  const latencyHint = t('usage_stats.latency_unit_hint', {
+    field: LATENCY_SOURCE_FIELD,
+    unit: t('usage_stats.duration_unit_ms'),
+  });
 
   const [modelFilter, setModelFilter] = useState(ALL_FILTER);
   const [sourceFilter, setSourceFilter] = useState(ALL_FILTER);
@@ -107,7 +114,7 @@ export function RequestEventsDetailsCard({
           if (!key) return;
           map.set(key, {
             name: file.name || key,
-            type: (file.type || file.provider || '').toString()
+            type: (file.type || file.provider || '').toString(),
           });
         });
         setAuthFileMap(map);
@@ -167,7 +174,12 @@ export function RequestEventsDetailsCard({
           authIndexRaw === null || authIndexRaw === undefined || authIndexRaw === ''
             ? '-'
             : String(authIndexRaw);
-        const sourceInfo = resolveSourceDisplay(sourceRaw, authIndexRaw, sourceInfoMap, authFileMap);
+        const sourceInfo = resolveSourceDisplay(
+          sourceRaw,
+          authIndexRaw,
+          sourceInfoMap,
+          authFileMap
+        );
         const source = sourceInfo.displayName;
         const sourceType = sourceInfo.type;
         const model = String(detail.__modelName ?? '').trim() || '-';
@@ -182,9 +194,8 @@ export function RequestEventsDetailsCard({
           toNumber(detail.tokens?.total_tokens),
           extractTotalTokens(detail)
         );
-        const latencyMsRaw = toNumber(detail.latency_ms);
-        const latencyMs = latencyMsRaw > 0 ? latencyMsRaw : null;
-        const tps = latencyMs ? outputTokens / (latencyMs / 1000) : null;
+        const latencyMs = extractLatencyMs(detail);
+        const tps = latencyMs && latencyMs > 0 ? outputTokens / (latencyMs / 1000) : null;
 
         return {
           id: `${timestamp}-${model}-${sourceRaw || source}-${authIndex}-${index}`,
@@ -203,19 +214,21 @@ export function RequestEventsDetailsCard({
           outputTokens,
           reasoningTokens,
           cachedTokens,
-          totalTokens
+          totalTokens,
         };
       })
       .sort((a, b) => b.timestampMs - a.timestampMs);
   }, [authFileMap, i18n.language, sourceInfoMap, usage]);
+
+  const hasLatencyData = useMemo(() => rows.some((row) => row.latencyMs !== null), [rows]);
 
   const modelOptions = useMemo(
     () => [
       { value: ALL_FILTER, label: t('usage_stats.filter_all') },
       ...Array.from(new Set(rows.map((row) => row.model))).map((model) => ({
         value: model,
-        label: model
-      }))
+        label: model,
+      })),
     ],
     [rows, t]
   );
@@ -225,8 +238,8 @@ export function RequestEventsDetailsCard({
       { value: ALL_FILTER, label: t('usage_stats.filter_all') },
       ...Array.from(new Set(rows.map((row) => row.source))).map((source) => ({
         value: source,
-        label: source
-      }))
+        label: source,
+      })),
     ],
     [rows, t]
   );
@@ -236,8 +249,8 @@ export function RequestEventsDetailsCard({
       { value: ALL_FILTER, label: t('usage_stats.filter_all') },
       ...Array.from(new Set(rows.map((row) => row.authIndex))).map((authIndex) => ({
         value: authIndex,
-        label: authIndex
-      }))
+        label: authIndex,
+      })),
     ],
     [rows, t]
   );
@@ -264,8 +277,10 @@ export function RequestEventsDetailsCard({
   const filteredRows = useMemo(
     () =>
       rows.filter((row) => {
-        const modelMatched = effectiveModelFilter === ALL_FILTER || row.model === effectiveModelFilter;
-        const sourceMatched = effectiveSourceFilter === ALL_FILTER || row.source === effectiveSourceFilter;
+        const modelMatched =
+          effectiveModelFilter === ALL_FILTER || row.model === effectiveModelFilter;
+        const sourceMatched =
+          effectiveSourceFilter === ALL_FILTER || row.source === effectiveSourceFilter;
         const authIndexMatched =
           effectiveAuthIndexFilter === ALL_FILTER || row.authIndex === effectiveAuthIndexFilter;
         return modelMatched && sourceMatched && authIndexMatched;
@@ -273,10 +288,7 @@ export function RequestEventsDetailsCard({
     [effectiveAuthIndexFilter, effectiveModelFilter, effectiveSourceFilter, rows]
   );
 
-  const renderedRows = useMemo(
-    () => filteredRows.slice(0, MAX_RENDERED_EVENTS),
-    [filteredRows]
-  );
+  const renderedRows = useMemo(() => filteredRows.slice(0, MAX_RENDERED_EVENTS), [filteredRows]);
 
   const hasActiveFilters =
     effectiveModelFilter !== ALL_FILTER ||
@@ -299,13 +311,12 @@ export function RequestEventsDetailsCard({
       'source_raw',
       'auth_index',
       'result',
-      'latency_ms',
-      'tps',
+      ...(hasLatencyData ? ['latency_ms', 'tps'] : []),
       'input_tokens',
       'output_tokens',
       'reasoning_tokens',
       'cached_tokens',
-      'total_tokens'
+      'total_tokens',
     ];
 
     const csvRows = filteredRows.map((row) =>
@@ -316,13 +327,14 @@ export function RequestEventsDetailsCard({
         row.sourceRaw,
         row.authIndex,
         row.failed ? 'failed' : 'success',
-        row.latencyMs ?? '',
-        row.tps !== null ? row.tps.toFixed(2) : '',
+        ...(hasLatencyData
+          ? [row.latencyMs ?? '', row.tps !== null ? row.tps.toFixed(2) : '']
+          : []),
         row.inputTokens,
         row.outputTokens,
         row.reasoningTokens,
         row.cachedTokens,
-        row.totalTokens
+        row.totalTokens,
       ]
         .map((value) => encodeCsv(value))
         .join(',')
@@ -332,7 +344,7 @@ export function RequestEventsDetailsCard({
     const fileTime = new Date().toISOString().replace(/[:.]/g, '-');
     downloadBlob({
       filename: `usage-events-${fileTime}.csv`,
-      blob: new Blob([content], { type: 'text/csv;charset=utf-8' })
+      blob: new Blob([content], { type: 'text/csv;charset=utf-8' }),
     });
   };
 
@@ -346,22 +358,22 @@ export function RequestEventsDetailsCard({
       source_raw: row.sourceRaw,
       auth_index: row.authIndex,
       failed: row.failed,
-      latency_ms: row.latencyMs,
-      tps: row.tps,
+      ...(hasLatencyData && row.latencyMs !== null ? { latency_ms: row.latencyMs } : {}),
+      ...(hasLatencyData && row.tps !== null ? { tps: row.tps } : {}),
       tokens: {
         input_tokens: row.inputTokens,
         output_tokens: row.outputTokens,
         reasoning_tokens: row.reasoningTokens,
         cached_tokens: row.cachedTokens,
-        total_tokens: row.totalTokens
-      }
+        total_tokens: row.totalTokens,
+      },
     }));
 
     const content = JSON.stringify(payload, null, 2);
     const fileTime = new Date().toISOString().replace(/[:.]/g, '-');
     downloadBlob({
       filename: `usage-events-${fileTime}.json`,
-      blob: new Blob([content], { type: 'application/json;charset=utf-8' })
+      blob: new Blob([content], { type: 'application/json;charset=utf-8' }),
     });
   };
 
@@ -468,11 +480,12 @@ export function RequestEventsDetailsCard({
         <>
           <div className={styles.requestEventsMeta}>
             <span>{t('usage_stats.request_events_count', { count: filteredRows.length })}</span>
+            {hasLatencyData && <span className={styles.requestEventsLimitHint}>{latencyHint}</span>}
             {filteredRows.length > MAX_RENDERED_EVENTS && (
               <span className={styles.requestEventsLimitHint}>
                 {t('usage_stats.request_events_limit_hint', {
                   shown: MAX_RENDERED_EVENTS,
-                  total: filteredRows.length
+                  total: filteredRows.length,
                 })}
               </span>
             )}
@@ -487,8 +500,8 @@ export function RequestEventsDetailsCard({
                   <th>{t('usage_stats.request_events_source')}</th>
                   <th>{t('usage_stats.request_events_auth_index')}</th>
                   <th>{t('usage_stats.request_events_result')}</th>
-                  <th>{t('usage_stats.request_events_latency')}</th>
-                  <th>{t('usage_stats.request_events_tps')}</th>
+                  {hasLatencyData && <th title={latencyHint}>{t('usage_stats.time')}</th>}
+                  {hasLatencyData && <th>{t('usage_stats.request_events_tps')}</th>}
                   <th>{t('usage_stats.input_tokens')}</th>
                   <th>{t('usage_stats.output_tokens')}</th>
                   <th>{t('usage_stats.reasoning_tokens')}</th>
@@ -514,13 +527,19 @@ export function RequestEventsDetailsCard({
                     </td>
                     <td>
                       <span
-                        className={row.failed ? styles.requestEventsResultFailed : styles.requestEventsResultSuccess}
+                        className={
+                          row.failed
+                            ? styles.requestEventsResultFailed
+                            : styles.requestEventsResultSuccess
+                        }
                       >
                         {row.failed ? t('stats.failure') : t('stats.success')}
                       </span>
                     </td>
-                    <td>{row.latencyMs !== null ? `${(row.latencyMs / 1000).toFixed(2)} s` : '--'}</td>
-                    <td>{row.tps !== null ? row.tps.toFixed(2) : '--'}</td>
+                    {hasLatencyData && (
+                      <td className={styles.durationCell}>{formatDurationMs(row.latencyMs)}</td>
+                    )}
+                    {hasLatencyData && <td>{row.tps !== null ? row.tps.toFixed(2) : '--'}</td>}
                     <td>{row.inputTokens.toLocaleString()}</td>
                     <td>{row.outputTokens.toLocaleString()}</td>
                     <td>{row.reasoningTokens.toLocaleString()}</td>

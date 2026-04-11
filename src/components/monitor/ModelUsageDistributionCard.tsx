@@ -61,6 +61,9 @@ export function ModelUsageDistributionCard({
         failureCount: 0,
         tokens: 0,
         cost: 0,
+        averageLatencyMs: null,
+        totalLatencyMs: null,
+        latencySampleCount: 0,
         value: othersValue,
         share: total > 0 ? (othersValue / total) * 100 : 0
       });
