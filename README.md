@@ -17,7 +17,7 @@
 
 - 增强凭证统计
   - 新增凭证花费统计
-  - 对于Codex凭证：可一键刷新配额，并根据配额的截止时间自动统计5h花费/周花费。
+  - 对于Codex凭证：可一键刷新配额，并根据配额的截止时间往前倒推统计5h花费/周花费。
 ![monitor-credentials](docs/images/monitor-credentials.png)
 
 - 增强请求事件明细：
@@ -35,6 +35,10 @@
 
 在CPA的配置面板中，设置面板仓库为本仓库地址后，强制刷新（Ctrl+F5）页面
 ![how-to-use](docs/images/how-to-use.png)
+
+## 友链
+
+[![友链 linux.do](https://img.shields.io/badge/LINUX--DO-Community-blue.svg)](https://linux.do/)
 
 ## License
 
