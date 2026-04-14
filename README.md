@@ -2,8 +2,7 @@
 
 > 本仓库为上游 Web UI 项目的二次开发版本。
 > 
-> 原始/基础功能请参考上游仓库：
-> - 上游 Web UI 仓库：https://github.com/router-for-me/Cli-Proxy-API-Management-Center
+> 原始/基础功能请参考上游仓库：https://github.com/router-for-me/Cli-Proxy-API-Management-Center
 
 本 README 只记录 **本 fork 相对上游新增/增强的功能点**。
 
@@ -31,6 +30,11 @@
   - 仅对 **已有使用记录** 的模型进行匹配与同步
   - 支持CPA模型名称映射，例如把CPA中的coder-model先映射为qwen3.6-plus后再进行价格匹配
 ![usage-price-sync](docs/images/usage-price-sync.png)
+
+## 使用方法
+
+在CPA的配置面板中，设置面板仓库为本仓库地址后，强制刷新（Ctrl+F5）页面
+![how-to-use](docs/images/how-to-use.png)
 
 ## License
 
