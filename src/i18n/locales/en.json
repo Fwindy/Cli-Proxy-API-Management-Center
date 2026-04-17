@@ -1498,6 +1498,7 @@
   "language": {
     "switch": "Language",
     "chinese": "中文",
+    "chinese_tw": "Traditional Chinese (Taiwan)",
     "english": "English",
     "russian": "Русский"
   },
