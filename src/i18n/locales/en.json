@@ -940,6 +940,7 @@
     "range_7h": "Last 7 Hours",
     "range_24h": "Last 24 Hours",
     "range_7d": "Last 7 Days",
+    "range_30d": "Last 30 Days",
     "filter_all": "All",
     "clear_filters": "Clear Filters",
     "refresh": "Refresh",
@@ -1068,6 +1069,8 @@
     "credential_no_result_desc": "Try adjusting the filters or search keyword.",
     "auto_refresh": "Auto Refresh",
     "auto_refresh_off": "Off",
+    "auto_refresh_custom": "Custom",
+    "auto_refresh_custom_seconds": "Custom refresh seconds",
     "auto_refresh_countdown": "Refreshes in {{count}}s"
   },
   "stats": {

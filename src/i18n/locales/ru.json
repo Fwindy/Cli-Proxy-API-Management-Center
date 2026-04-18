@@ -937,6 +937,7 @@
     "range_7h": "Последние 7 часов",
     "range_24h": "Последние 24 часа",
     "range_7d": "Последние 7 дней",
+    "range_30d": "Последние 30 дней",
     "filter_all": "Все",
     "clear_filters": "Сбросить фильтры",
     "refresh": "Обновить",
@@ -1065,6 +1066,8 @@
     "credential_no_result_desc": "Попробуйте изменить фильтр или поисковый запрос.",
     "auto_refresh": "Автообновление",
     "auto_refresh_off": "Выкл",
+    "auto_refresh_custom": "Свое значение",
+    "auto_refresh_custom_seconds": "Секунды пользовательского обновления",
     "auto_refresh_countdown": "Обновление через {{count}} с"
   },
   "stats": {

@@ -1006,6 +1006,30 @@
   min-width: 180px;
 }
 
+.requestEventsAutoRefreshControls {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-xs;
+  flex-wrap: nowrap;
+
+  :global(.form-group) {
+    margin: 0;
+  }
+}
+
+.requestEventsAutoRefreshInput {
+  width: 92px;
+  height: 40px;
+  margin: 0;
+  padding: 7px 10px;
+  line-height: 24px;
+  box-sizing: border-box;
+  font-size: 13px;
+  font-weight: 500;
+  background-color: var(--bg-primary);
+  box-shadow: var(--shadow);
+}
+
 .requestEventsCountdown {
   font-size: 11px;
   color: var(--text-tertiary);

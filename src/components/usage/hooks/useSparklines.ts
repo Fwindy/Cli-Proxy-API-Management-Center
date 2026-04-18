@@ -101,9 +101,10 @@ export function useSparklines({
       data: sumSeries(tokenBase.dataByModel, tokenBase.labels.length)
     };
 
-    if (timeRange === '7d') {
-      const trimmedRequests = trimDailySeriesToRecentDays(requestSeries, 7);
-      const trimmedTokens = trimDailySeriesToRecentDays(tokenSeries, 7);
+    if (timeRange === '7d' || timeRange === '30d') {
+      const days = timeRange === '7d' ? 7 : 30;
+      const trimmedRequests = trimDailySeriesToRecentDays(requestSeries, days);
+      const trimmedTokens = trimDailySeriesToRecentDays(tokenSeries, days);
       return {
         labels: trimmedRequests.labels,
         requests: trimmedRequests.data,
@@ -131,7 +132,10 @@ export function useSparklines({
 
     const costBase = buildDailyCostSeries(usage, modelPrices);
     const series = { labels: costBase.labels, data: costBase.data };
-    return timeRange === '7d' ? trimDailySeriesToRecentDays(series, 7) : series;
+    if (timeRange === '7d' || timeRange === '30d') {
+      return trimDailySeriesToRecentDays(series, timeRange === '7d' ? 7 : 30);
+    }
+    return series;
   }, [modelPrices, timeRange, usage]);
 
   const buildSparkline = useCallback(

@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { getAuthFileStatusMessage } from '@/features/authFiles/constants';
@@ -59,19 +60,34 @@ export interface RequestEventsDetailsCardProps {
 }
 
 const AUTO_REFRESH_OFF = 'off';
+const AUTO_REFRESH_CUSTOM = 'custom';
 const AUTO_REFRESH_INTERVALS = {
   '15s': 15_000,
   '30s': 30_000,
   '1m': 60_000,
   '5m': 300_000,
 } as const;
+const MIN_CUSTOM_AUTO_REFRESH_SECONDS = 5;
+const MAX_CUSTOM_AUTO_REFRESH_SECONDS = 3600;
+const DEFAULT_CUSTOM_AUTO_REFRESH_SECONDS = 60;
 
-type AutoRefreshValue = keyof typeof AUTO_REFRESH_INTERVALS | typeof AUTO_REFRESH_OFF;
+type AutoRefreshValue =
+  | keyof typeof AUTO_REFRESH_INTERVALS
+  | typeof AUTO_REFRESH_OFF
+  | typeof AUTO_REFRESH_CUSTOM;
 
 const toNumber = (value: unknown): number => {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return 0;
   return parsed;
+};
+
+const normalizeCustomAutoRefreshSeconds = (value: unknown): number => {
+  const parsed = Math.floor(Number(value));
+  if (!Number.isFinite(parsed)) {
+    return DEFAULT_CUSTOM_AUTO_REFRESH_SECONDS;
+  }
+  return Math.min(Math.max(parsed, MIN_CUSTOM_AUTO_REFRESH_SECONDS), MAX_CUSTOM_AUTO_REFRESH_SECONDS);
 };
 
 const encodeCsv = (value: string | number): string => {
@@ -98,36 +114,45 @@ export function RequestEventsDetailsCard({
   const [sourceFilter, setSourceFilter] = useState(ALL_FILTER);
   const [authIndexFilter, setAuthIndexFilter] = useState(ALL_FILTER);
   const [autoRefreshValue, setAutoRefreshValue] = useState<AutoRefreshValue>(AUTO_REFRESH_OFF);
+  const [customAutoRefreshSeconds, setCustomAutoRefreshSeconds] = useState(
+    DEFAULT_CUSTOM_AUTO_REFRESH_SECONDS.toString()
+  );
   const [authFileMap, setAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
   const [selectedFailureRow, setSelectedFailureRow] = useState<RequestEventRow | null>(null);
   const [nextRefreshAtMs, setNextRefreshAtMs] = useState<number | null>(null);
   const [countdownNowMs, setCountdownNowMs] = useState(() => Date.now());
 
-  useEffect(() => {
-    let cancelled = false;
-    authFilesApi
-      .list()
-      .then((res) => {
-        if (cancelled) return;
-        const files = Array.isArray(res) ? res : (res as { files?: AuthFileItem[] })?.files;
-        if (!Array.isArray(files)) return;
-        const map = new Map<string, CredentialInfo>();
-        files.forEach((file) => {
-          const key = normalizeAuthIndex(file['auth_index'] ?? file.authIndex);
-          if (!key) return;
-          map.set(key, {
-            name: file.name || key,
-            type: (file.type || file.provider || '').toString(),
-            statusMessage: getAuthFileStatusMessage(file),
-          });
+  const refreshAuthFiles = useCallback(async () => {
+    try {
+      const res = await authFilesApi.list();
+      const files = Array.isArray(res) ? res : (res as { files?: AuthFileItem[] })?.files;
+      if (!Array.isArray(files)) return;
+      const map = new Map<string, CredentialInfo>();
+      files.forEach((file) => {
+        const key = normalizeAuthIndex(file['auth_index'] ?? file.authIndex);
+        if (!key) return;
+        map.set(key, {
+          name: file.name || key,
+          type: (file.type || file.provider || '').toString(),
+          statusMessage: getAuthFileStatusMessage(file),
         });
-        setAuthFileMap(map);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
+      });
+      setAuthFileMap(map);
+    } catch {
+      // Ignore auth file refresh failures.
+    }
   }, []);
+
+  useEffect(() => {
+    void refreshAuthFiles();
+  }, [refreshAuthFiles]);
+
+  useEffect(() => {
+    if (!lastRefreshedAt) {
+      return;
+    }
+    void refreshAuthFiles();
+  }, [lastRefreshedAt, refreshAuthFiles]);
 
   const sourceInfoMap = useMemo(
     () =>
@@ -147,14 +172,24 @@ export function RequestEventsDetailsCard({
       { value: '15s', label: '15s' },
       { value: '30s', label: '30s' },
       { value: '1m', label: '1m' },
-      { value: '5m', label: '5m' }
+      { value: '5m', label: '5m' },
+      { value: AUTO_REFRESH_CUSTOM, label: t('monitoring_center.auto_refresh_custom') }
     ],
     [t]
   );
-  const autoRefreshDelay =
-    onRefresh && autoRefreshValue !== AUTO_REFRESH_OFF
-      ? AUTO_REFRESH_INTERVALS[autoRefreshValue]
-      : null;
+  const normalizedCustomAutoRefreshSeconds = useMemo(
+    () => normalizeCustomAutoRefreshSeconds(customAutoRefreshSeconds),
+    [customAutoRefreshSeconds]
+  );
+  const autoRefreshDelay = useMemo(() => {
+    if (!onRefresh || autoRefreshValue === AUTO_REFRESH_OFF) {
+      return null;
+    }
+    if (autoRefreshValue === AUTO_REFRESH_CUSTOM) {
+      return normalizedCustomAutoRefreshSeconds * 1000;
+    }
+    return AUTO_REFRESH_INTERVALS[autoRefreshValue];
+  }, [autoRefreshValue, normalizedCustomAutoRefreshSeconds, onRefresh]);
 
   useEffect(() => {
     if (!autoRefreshDelay) {
@@ -175,6 +210,14 @@ export function RequestEventsDetailsCard({
   useInterval(() => {
     setCountdownNowMs(Date.now());
   }, autoRefreshDelay ? 1000 : null);
+
+  const handleCustomAutoRefreshSecondsChange = useCallback((value: string) => {
+    setCustomAutoRefreshSeconds(value.replace(/\D/g, ''));
+  }, []);
+
+  const handleCustomAutoRefreshSecondsBlur = useCallback(() => {
+    setCustomAutoRefreshSeconds(normalizeCustomAutoRefreshSeconds(customAutoRefreshSeconds).toString());
+  }, [customAutoRefreshSeconds]);
 
   useInterval(() => {
     if (!onRefresh || loading || !autoRefreshDelay) return;
@@ -497,14 +540,28 @@ export function RequestEventsDetailsCard({
                 </span>
               )}
             </span>
-            <Select
-              value={autoRefreshValue}
-              options={autoRefreshOptions}
-              onChange={(value) => setAutoRefreshValue(value as AutoRefreshValue)}
-              className={styles.requestEventsSelect}
-              ariaLabel={t('monitoring_center.auto_refresh')}
-              fullWidth={false}
-            />
+            <div className={styles.requestEventsAutoRefreshControls}>
+              <Select
+                value={autoRefreshValue}
+                options={autoRefreshOptions}
+                onChange={(value) => setAutoRefreshValue(value as AutoRefreshValue)}
+                className={styles.requestEventsSelect}
+                ariaLabel={t('monitoring_center.auto_refresh')}
+                fullWidth={false}
+              />
+              {autoRefreshValue === AUTO_REFRESH_CUSTOM && (
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  value={customAutoRefreshSeconds}
+                  onChange={(event) => handleCustomAutoRefreshSecondsChange(event.target.value)}
+                  onBlur={handleCustomAutoRefreshSecondsBlur}
+                  className={styles.requestEventsAutoRefreshInput}
+                  aria-label={t('monitoring_center.auto_refresh_custom_seconds')}
+                  placeholder={normalizedCustomAutoRefreshSeconds.toString()}
+                />
+              )}
+            </div>
           </div>
         )}
       </div>

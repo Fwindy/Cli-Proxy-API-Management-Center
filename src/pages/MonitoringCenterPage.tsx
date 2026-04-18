@@ -59,19 +59,21 @@ ChartJS.register(
 const TIME_RANGE_STORAGE_KEY = 'cli-proxy-monitor-time-range-v1';
 const DEFAULT_TIME_RANGE: UsageTimeRange = '24h';
 const TIME_RANGE_OPTIONS: ReadonlyArray<{ value: UsageTimeRange; labelKey: string }> = [
-  { value: 'all', labelKey: 'usage_stats.range_all' },
   { value: '7h', labelKey: 'usage_stats.range_7h' },
   { value: '24h', labelKey: 'usage_stats.range_24h' },
-  { value: '7d', labelKey: 'usage_stats.range_7d' }
+  { value: '7d', labelKey: 'usage_stats.range_7d' },
+  { value: '30d', labelKey: 'usage_stats.range_30d' },
+  { value: 'all', labelKey: 'usage_stats.range_all' }
 ];
 const HOUR_WINDOW_BY_TIME_RANGE: Record<Exclude<UsageTimeRange, 'all'>, number> = {
   '7h': 7,
   '24h': 24,
-  '7d': 7 * 24
+  '7d': 7 * 24,
+  '30d': 30 * 24
 };
 
 const isUsageTimeRange = (value: unknown): value is UsageTimeRange =>
-  value === '7h' || value === '24h' || value === '7d' || value === 'all';
+  value === '7h' || value === '24h' || value === '7d' || value === '30d' || value === 'all';
 
 const loadTimeRange = (): UsageTimeRange => {
   try {
@@ -102,7 +104,11 @@ export function MonitoringCenterPage() {
     loadUsage,
   } = useUsageData();
 
-  useHeaderRefresh(loadUsage);
+  const handleRefresh = useCallback(async () => {
+    await loadUsage();
+  }, [loadUsage]);
+
+  useHeaderRefresh(handleRefresh);
 
   const [timeRange, setTimeRange] = useState<UsageTimeRange>(loadTimeRange);
 
@@ -127,6 +133,7 @@ export function MonitoringCenterPage() {
     if (timeRange === '7h') return 7 * 60;
     if (timeRange === '24h') return 24 * 60;
     if (timeRange === '7d') return 7 * 24 * 60;
+    if (timeRange === '30d') return 30 * 24 * 60;
     return 30;
   }, [timeRange]);
   const nowMs = lastRefreshedAt?.getTime() ?? 0;
@@ -176,7 +183,7 @@ export function MonitoringCenterPage() {
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => void loadUsage().catch(() => {})}
+            onClick={() => void handleRefresh().catch(() => {})}
             disabled={loading}
           >
             {loading ? t('common.loading') : t('usage_stats.refresh')}
@@ -248,7 +255,7 @@ export function MonitoringCenterPage() {
           codexConfigs={config?.codexApiKeys || []}
           vertexConfigs={config?.vertexApiKeys || []}
           openaiProviders={config?.openaiCompatibility || []}
-          onRefresh={loadUsage}
+          onRefresh={handleRefresh}
           lastRefreshedAt={lastRefreshedAt}
         />
       </div>
