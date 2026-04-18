@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
+import { getAuthFileStatusMessage } from '@/features/authFiles/constants';
 import { useInterval } from '@/hooks/useInterval';
 import { authFilesApi } from '@/services/api/authFiles';
 import type { GeminiKeyConfig, ProviderKeyConfig, OpenAIProviderConfig } from '@/types';
@@ -96,6 +98,7 @@ export function RequestEventsDetailsCard({
   const [authIndexFilter, setAuthIndexFilter] = useState(ALL_FILTER);
   const [autoRefreshValue, setAutoRefreshValue] = useState<AutoRefreshValue>(AUTO_REFRESH_OFF);
   const [authFileMap, setAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
+  const [selectedFailureRow, setSelectedFailureRow] = useState<RequestEventRow | null>(null);
   const [nextRefreshAtMs, setNextRefreshAtMs] = useState<number | null>(null);
   const [countdownNowMs, setCountdownNowMs] = useState(() => Date.now());
 
@@ -114,6 +117,7 @@ export function RequestEventsDetailsCard({
           map.set(key, {
             name: file.name || key,
             type: (file.type || file.provider || '').toString(),
+            statusMessage: getAuthFileStatusMessage(file),
           });
         });
         setAuthFileMap(map);
@@ -402,6 +406,14 @@ export function RequestEventsDetailsCard({
     });
   };
 
+  const selectedCredentialInfo = useMemo(() => {
+    if (!selectedFailureRow) return null;
+    const normalizedAuthIndex = normalizeAuthIndex(selectedFailureRow.authIndex);
+    if (!normalizedAuthIndex) return null;
+    return authFileMap.get(normalizedAuthIndex) ?? null;
+  }, [authFileMap, selectedFailureRow]);
+  const selectedFailureMessage = selectedCredentialInfo?.statusMessage?.trim() || '';
+
   return (
     <Card
       title={t('usage_stats.request_events_title')}
@@ -557,15 +569,18 @@ export function RequestEventsDetailsCard({
                       {row.authIndex}
                     </td>
                     <td>
-                      <span
-                        className={
-                          row.failed
-                            ? styles.requestEventsResultFailed
-                            : styles.requestEventsResultSuccess
-                        }
-                      >
-                        {row.failed ? t('stats.failure') : t('stats.success')}
-                      </span>
+                      {row.failed ? (
+                        <button
+                          type="button"
+                          className={`${styles.requestEventsResultFailed} ${styles.requestEventsResultButton}`}
+                          onClick={() => setSelectedFailureRow(row)}
+                          aria-label={t('usage_stats.request_events_failure_log_view')}
+                        >
+                          {t('stats.failure')}
+                        </button>
+                      ) : (
+                        <span className={styles.requestEventsResultSuccess}>{t('stats.success')}</span>
+                      )}
                     </td>
                     {hasLatencyData && (
                       <td className={styles.durationCell}>{formatDurationMs(row.latencyMs)}</td>
@@ -583,6 +598,56 @@ export function RequestEventsDetailsCard({
           </div>
         </>
       )}
+
+      <Modal
+        open={selectedFailureRow !== null}
+        title={t('usage_stats.request_events_failure_log_title')}
+        onClose={() => setSelectedFailureRow(null)}
+        width={560}
+      >
+        {selectedFailureRow && (
+          <div className={styles.requestEventsFailureModalBody}>
+            <div className={styles.requestEventsFailureMeta}>
+              <div>
+                <span className={styles.requestEventsFailureMetaLabel}>
+                  {t('usage_stats.request_events_failure_log_timestamp')}
+                </span>
+                <span className={styles.requestEventsFailureMetaValue}>
+                  {selectedFailureRow.timestampLabel}
+                </span>
+              </div>
+              <div>
+                <span className={styles.requestEventsFailureMetaLabel}>
+                  {t('usage_stats.request_events_failure_log_model')}
+                </span>
+                <span className={styles.requestEventsFailureMetaValue}>{selectedFailureRow.model}</span>
+              </div>
+            </div>
+
+            {selectedCredentialInfo?.name && (
+              <div className={styles.requestEventsFailureCredentialRow}>
+                <span className={styles.requestEventsFailureMetaLabel}>
+                  {t('usage_stats.request_events_failure_log_credential')}
+                </span>
+                <span className={styles.requestEventsFailureMetaValue}>{selectedCredentialInfo.name}</span>
+              </div>
+            )}
+
+            <div className={styles.requestEventsFailureMessageBlock}>
+              <div className={styles.requestEventsFailureMetaLabel}>
+                {t('usage_stats.request_events_failure_log_message_label')}
+              </div>
+              <div className={styles.requestEventsFailureMessage}>
+                {selectedFailureMessage || t('usage_stats.request_events_failure_log_empty')}
+              </div>
+            </div>
+
+            <div className={styles.requestEventsFailureNote}>
+              {t('usage_stats.request_events_failure_log_note')}
+            </div>
+          </div>
+        )}
+      </Modal>
     </Card>
   );
 }

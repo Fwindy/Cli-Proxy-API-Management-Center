@@ -24,6 +24,8 @@
   - 支持自动刷新（15s/30s/1m/5m）
   - 新增Tokens per second (TPS) 统计。
 ![monitor-request](docs/images/monitor-request.png)
+  - 当请求失败时，可点击“失败”查看失败日志（实际上是该凭证的最新状态日志，非精确的请求日志）。
+![monitor-error](docs/images/monitor-error.png)
 
 - 一键导入模型价格
   - 从 https://models.dev/api.json 拉取最新价格并导入，对于多Provider的模型，可以手动指定优先用哪个Provider的价格
