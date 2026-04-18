@@ -321,6 +321,12 @@
 
 .credentialSearchInput {
   min-width: 220px;
+  height: 40px;
+  padding: 7px 10px;
+  line-height: 24px;
+  box-sizing: border-box;
+  font-size: 13px;
+  font-weight: 500;
 }
 
 .requestEventsFilterLabel {
