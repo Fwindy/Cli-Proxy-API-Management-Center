@@ -1018,6 +1018,7 @@
     "request_events_filter_model": "模型",
     "request_events_filter_source": "来源",
     "request_events_filter_auth_index": "认证索引",
+    "request_events_filter_result": "结果",
     "request_events_timestamp": "时间",
     "request_events_source": "来源",
     "request_events_auth_index": "认证索引",

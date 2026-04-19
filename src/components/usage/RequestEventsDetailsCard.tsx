@@ -25,6 +25,8 @@ import { downloadBlob } from '@/utils/download';
 import styles from '@/pages/UsagePage.module.scss';
 
 const ALL_FILTER = '__all__';
+const RESULT_SUCCESS_FILTER = 'success';
+const RESULT_FAILURE_FILTER = 'failure';
 const MAX_RENDERED_EVENTS = 500;
 
 type RequestEventRow = {
@@ -116,6 +118,7 @@ export function RequestEventsDetailsCard({
   const [modelFilter, setModelFilter] = useState(ALL_FILTER);
   const [sourceFilter, setSourceFilter] = useState(ALL_FILTER);
   const [authIndexFilter, setAuthIndexFilter] = useState(ALL_FILTER);
+  const [resultFilter, setResultFilter] = useState(ALL_FILTER);
   const [autoRefreshValue, setAutoRefreshValue] = useState<AutoRefreshValue>(AUTO_REFRESH_OFF);
   const [customAutoRefreshSeconds, setCustomAutoRefreshSeconds] = useState(
     DEFAULT_CUSTOM_AUTO_REFRESH_SECONDS.toString()
@@ -380,6 +383,14 @@ export function RequestEventsDetailsCard({
     ],
     [rows, t]
   );
+  const resultOptions = useMemo(
+    () => [
+      { value: ALL_FILTER, label: t('usage_stats.filter_all') },
+      { value: RESULT_SUCCESS_FILTER, label: t('stats.success') },
+      { value: RESULT_FAILURE_FILTER, label: t('stats.failure') },
+    ],
+    [t]
+  );
 
   const modelOptionSet = useMemo(
     () => new Set(modelOptions.map((option) => option.value)),
@@ -393,12 +404,17 @@ export function RequestEventsDetailsCard({
     () => new Set(authIndexOptions.map((option) => option.value)),
     [authIndexOptions]
   );
+  const resultOptionSet = useMemo(
+    () => new Set(resultOptions.map((option) => option.value)),
+    [resultOptions]
+  );
 
   const effectiveModelFilter = modelOptionSet.has(modelFilter) ? modelFilter : ALL_FILTER;
   const effectiveSourceFilter = sourceOptionSet.has(sourceFilter) ? sourceFilter : ALL_FILTER;
   const effectiveAuthIndexFilter = authIndexOptionSet.has(authIndexFilter)
     ? authIndexFilter
     : ALL_FILTER;
+  const effectiveResultFilter = resultOptionSet.has(resultFilter) ? resultFilter : ALL_FILTER;
 
   const filteredRows = useMemo(
     () =>
@@ -409,9 +425,12 @@ export function RequestEventsDetailsCard({
           effectiveSourceFilter === ALL_FILTER || row.sourceKey === effectiveSourceFilter;
         const authIndexMatched =
           effectiveAuthIndexFilter === ALL_FILTER || row.authIndex === effectiveAuthIndexFilter;
-        return modelMatched && sourceMatched && authIndexMatched;
+        const resultMatched =
+          effectiveResultFilter === ALL_FILTER ||
+          (effectiveResultFilter === RESULT_FAILURE_FILTER ? row.failed : !row.failed);
+        return modelMatched && sourceMatched && authIndexMatched && resultMatched;
       }),
-    [effectiveAuthIndexFilter, effectiveModelFilter, effectiveSourceFilter, rows]
+    [effectiveAuthIndexFilter, effectiveModelFilter, effectiveResultFilter, effectiveSourceFilter, rows]
   );
 
   const renderedRows = useMemo(() => filteredRows.slice(0, MAX_RENDERED_EVENTS), [filteredRows]);
@@ -419,12 +438,14 @@ export function RequestEventsDetailsCard({
   const hasActiveFilters =
     effectiveModelFilter !== ALL_FILTER ||
     effectiveSourceFilter !== ALL_FILTER ||
-    effectiveAuthIndexFilter !== ALL_FILTER;
+    effectiveAuthIndexFilter !== ALL_FILTER ||
+    effectiveResultFilter !== ALL_FILTER;
 
   const handleClearFilters = () => {
     setModelFilter(ALL_FILTER);
     setSourceFilter(ALL_FILTER);
     setAuthIndexFilter(ALL_FILTER);
+    setResultFilter(ALL_FILTER);
   };
 
   const handleExportCsv = () => {
@@ -580,6 +601,19 @@ export function RequestEventsDetailsCard({
             onChange={setAuthIndexFilter}
             className={styles.requestEventsSelect}
             ariaLabel={t('usage_stats.request_events_filter_auth_index')}
+            fullWidth={false}
+          />
+        </div>
+        <div className={styles.requestEventsFilterItem}>
+          <span className={styles.requestEventsFilterLabel}>
+            {t('usage_stats.request_events_filter_result')}
+          </span>
+          <Select
+            value={effectiveResultFilter}
+            options={resultOptions}
+            onChange={setResultFilter}
+            className={styles.requestEventsSelect}
+            ariaLabel={t('usage_stats.request_events_filter_result')}
             fullWidth={false}
           />
         </div>

@@ -1027,6 +1027,7 @@
     "request_events_filter_model": "模型",
     "request_events_filter_source": "來源",
     "request_events_filter_auth_index": "驗證索引",
+    "request_events_filter_result": "結果",
     "request_events_timestamp": "時間",
     "request_events_source": "來源",
     "request_events_auth_index": "驗證索引",
