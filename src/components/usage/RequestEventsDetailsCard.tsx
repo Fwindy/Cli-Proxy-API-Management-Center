@@ -56,6 +56,7 @@ export interface RequestEventsDetailsCardProps {
   codexConfigs: ProviderKeyConfig[];
   vertexConfigs: ProviderKeyConfig[];
   openaiProviders: OpenAIProviderConfig[];
+  authFiles?: AuthFileItem[];
   onRefresh?: () => Promise<void> | void;
   lastRefreshedAt?: Date | null;
 }
@@ -106,6 +107,7 @@ export function RequestEventsDetailsCard({
   codexConfigs,
   vertexConfigs,
   openaiProviders,
+  authFiles,
   onRefresh,
   lastRefreshedAt,
 }: RequestEventsDetailsCardProps) {
@@ -118,42 +120,50 @@ export function RequestEventsDetailsCard({
   const [customAutoRefreshSeconds, setCustomAutoRefreshSeconds] = useState(
     DEFAULT_CUSTOM_AUTO_REFRESH_SECONDS.toString()
   );
-  const [authFileMap, setAuthFileMap] = useState<Map<string, CredentialInfo>>(new Map());
+  const [localAuthFiles, setLocalAuthFiles] = useState<AuthFileItem[]>([]);
   const [selectedFailureRow, setSelectedFailureRow] = useState<RequestEventRow | null>(null);
   const [nextRefreshAtMs, setNextRefreshAtMs] = useState<number | null>(null);
   const [countdownNowMs, setCountdownNowMs] = useState(() => Date.now());
 
+  const resolvedAuthFiles = authFiles ?? localAuthFiles;
+
   const refreshAuthFiles = useCallback(async () => {
+    if (authFiles) return;
     try {
       const res = await authFilesApi.list();
       const files = Array.isArray(res) ? res : (res as { files?: AuthFileItem[] })?.files;
       if (!Array.isArray(files)) return;
-      const map = new Map<string, CredentialInfo>();
-      files.forEach((file) => {
-        const key = normalizeAuthIndex(file['auth_index'] ?? file.authIndex);
-        if (!key) return;
-        map.set(key, {
-          name: file.name || key,
-          type: (file.type || file.provider || '').toString(),
-          statusMessage: getAuthFileStatusMessage(file),
-        });
-      });
-      setAuthFileMap(map);
+      setLocalAuthFiles(files);
     } catch {
       // Ignore auth file refresh failures.
     }
-  }, []);
+  }, [authFiles]);
 
   useEffect(() => {
+    if (authFiles) return;
     void refreshAuthFiles();
-  }, [refreshAuthFiles]);
+  }, [authFiles, refreshAuthFiles]);
 
   useEffect(() => {
-    if (!lastRefreshedAt) {
+    if (authFiles || !lastRefreshedAt) {
       return;
     }
     void refreshAuthFiles();
-  }, [lastRefreshedAt, refreshAuthFiles]);
+  }, [authFiles, lastRefreshedAt, refreshAuthFiles]);
+
+  const authFileMap = useMemo(() => {
+    const map = new Map<string, CredentialInfo>();
+    resolvedAuthFiles.forEach((file) => {
+      const key = normalizeAuthIndex(file['auth_index'] ?? file.authIndex);
+      if (!key) return;
+      map.set(key, {
+        name: file.name || key,
+        type: (file.type || file.provider || '').toString(),
+        statusMessage: getAuthFileStatusMessage(file),
+      });
+    });
+    return map;
+  }, [resolvedAuthFiles]);
 
   const sourceInfoMap = useMemo(
     () =>

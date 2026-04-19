@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { authFilesApi } from '@/services/api/authFiles';
 import { CODEX_CONFIG } from '@/components/quota';
 import { useQuotaStore } from '@/stores';
 import type { CodexQuotaState } from '@/types';
@@ -39,6 +38,7 @@ interface MonitorCredentialStatsCardProps {
   usage: UsagePayload | null;
   loading: boolean;
   modelPrices: Record<string, ModelPrice>;
+  authFiles: AuthFileMeta[];
 }
 
 interface CredentialRow {
@@ -86,10 +86,10 @@ const getCredentialHealth = (file?: AuthFileMeta): CredentialHealth => {
 export function MonitorCredentialStatsCard({
   usage,
   loading,
-  modelPrices
+  modelPrices,
+  authFiles
 }: MonitorCredentialStatsCardProps) {
   const { t } = useTranslation();
-  const [authFiles, setAuthFiles] = useState<AuthFileMeta[]>([]);
   const [refreshingKeys, setRefreshingKeys] = useState<Record<string, boolean>>({});
   const [sortKey, setSortKey] = useState<SortKey>('displayName');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
@@ -97,22 +97,6 @@ export function MonitorCredentialStatsCard({
   const [searchTerm, setSearchTerm] = useState('');
   const codexQuota = useQuotaStore((state) => state.codexQuota);
   const setCodexQuota = useQuotaStore((state) => state.setCodexQuota);
-
-  useEffect(() => {
-    let cancelled = false;
-    authFilesApi
-      .list()
-      .then((res) => {
-        if (cancelled) return;
-        const files = Array.isArray(res) ? res : (res as { files?: AuthFileMeta[] })?.files;
-        if (!Array.isArray(files)) return;
-        setAuthFiles(files);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const rows = useMemo((): CredentialRow[] => {
     if (!usage) return [];

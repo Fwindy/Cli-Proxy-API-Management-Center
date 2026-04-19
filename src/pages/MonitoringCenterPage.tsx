@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { authFilesApi } from '@/services/api/authFiles';
+import type { AuthFileItem } from '@/types/authFile';
 import {
   ArcElement,
   BarController,
@@ -103,12 +105,24 @@ export function MonitoringCenterPage() {
     setModelPrices,
     loadUsage,
   } = useUsageData();
+  const [authFiles, setAuthFiles] = useState<AuthFileItem[]>([]);
+
+  const loadAuthFiles = useCallback(async () => {
+    const res = await authFilesApi.list();
+    const files = Array.isArray(res) ? res : (res as { files?: AuthFileItem[] })?.files;
+    if (!Array.isArray(files)) return;
+    setAuthFiles(files);
+  }, []);
 
   const handleRefresh = useCallback(async () => {
-    await loadUsage();
-  }, [loadUsage]);
+    await Promise.all([loadUsage(), loadAuthFiles()]);
+  }, [loadAuthFiles, loadUsage]);
 
   useHeaderRefresh(handleRefresh);
+
+  useEffect(() => {
+    void loadAuthFiles().catch(() => {});
+  }, [loadAuthFiles]);
 
   const [timeRange, setTimeRange] = useState<UsageTimeRange>(loadTimeRange);
 
@@ -243,6 +257,7 @@ export function MonitoringCenterPage() {
           usage={filteredUsage as UsagePayload | null}
           loading={loading}
           modelPrices={modelPrices}
+          authFiles={authFiles}
         />
       </div>
 
@@ -255,6 +270,7 @@ export function MonitoringCenterPage() {
           codexConfigs={config?.codexApiKeys || []}
           vertexConfigs={config?.vertexApiKeys || []}
           openaiProviders={config?.openaiCompatibility || []}
+          authFiles={authFiles}
           onRefresh={handleRefresh}
           lastRefreshedAt={lastRefreshedAt}
         />
