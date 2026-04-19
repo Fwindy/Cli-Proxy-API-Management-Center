@@ -56,6 +56,8 @@ interface CredentialRow {
   quotaKey: string | null;
 }
 
+type CredentialHealth = 'normal' | 'exhausted' | 'disabled';
+
 const isCodexAuthFile = (file: AuthFileMeta | undefined) => Boolean(file && isCodexFile(file));
 
 const normalizeCredentialType = (file?: AuthFileMeta) => {
@@ -73,6 +75,12 @@ const toWindowCost = (endMs: number | null, windowMs: number | null) => {
     return null;
   }
   return { endMs, startMs: endMs - windowMs };
+};
+
+const getCredentialHealth = (file?: AuthFileMeta): CredentialHealth => {
+  if (file?.disabled === true) return 'disabled';
+  if (file?.unavailable === true) return 'exhausted';
+  return 'normal';
 };
 
 export function MonitorCredentialStatsCard({
@@ -203,6 +211,19 @@ export function MonitorCredentialStatsCard({
       }),
     [effectiveTypeFilter, normalizedSearchTerm, rows]
   );
+
+  const credentialStats = useMemo(() => {
+    const fileByName = new Map(authFiles.map((file) => [file.name, file]));
+    return filteredRows.reduce(
+      (acc, row) => {
+        const file = row.authFileName ? fileByName.get(row.authFileName) : undefined;
+        const health = getCredentialHealth(file);
+        acc[health] += 1;
+        return acc;
+      },
+      { normal: 0, exhausted: 0, disabled: 0 } as Record<CredentialHealth, number>
+    );
+  }, [authFiles, filteredRows]);
 
   const resolveQuotaKey = useCallback(
     (row: CredentialRow): string | null => {
@@ -406,7 +427,7 @@ export function MonitorCredentialStatsCard({
           <span className={styles.requestEventsFilterLabel}>
             {t('monitoring_center.credential_search_label')}
           </span>
-          <div className={styles.toolbarInputControl}>
+          <div className={`${styles.toolbarInputControl} ${styles.credentialSearchGroup}`}>
             <Input
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.currentTarget.value)}
@@ -414,6 +435,20 @@ export function MonitorCredentialStatsCard({
               aria-label={t('monitoring_center.credential_search_label')}
               className={styles.credentialSearchInput}
             />
+            <div className={styles.credentialStatsInline} aria-label={t('monitoring_center.credential_stats_label')}>
+              <span className={styles.credentialStatChip}>
+                {t('monitoring_center.credential_status_normal')}
+                <strong>{credentialStats.normal}</strong>
+              </span>
+              <span className={styles.credentialStatChip}>
+                {t('monitoring_center.credential_status_exhausted')}
+                <strong>{credentialStats.exhausted}</strong>
+              </span>
+              <span className={styles.credentialStatChip}>
+                {t('monitoring_center.credential_status_disabled')}
+                <strong>{credentialStats.disabled}</strong>
+              </span>
+            </div>
           </div>
         </div>
       </div>

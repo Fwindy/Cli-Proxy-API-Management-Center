@@ -319,7 +319,25 @@
   }
 }
 
+.credentialSearchGroup {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+
+  :global(.form-group) {
+    flex: 0 0 220px;
+    min-width: 220px;
+  }
+
+  @include mobile {
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+}
+
 .credentialSearchInput {
+  width: 220px;
   min-width: 220px;
   height: 40px;
   padding: 7px 10px;
@@ -327,6 +345,33 @@
   box-sizing: border-box;
   font-size: 13px;
   font-weight: 500;
+}
+
+.credentialStatsInline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.credentialStatChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+
+  strong {
+    color: var(--text-primary);
+    font-weight: 700;
+  }
 }
 
 .requestEventsFilterLabel {
