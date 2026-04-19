@@ -171,11 +171,11 @@ export function MonitorCredentialStatsCard({
   const typeOptions = useMemo(
     () => [
       { value: ALL_FILTER, label: t('usage_stats.filter_all') },
-      ...Array.from(new Set(rows.map((row) => row.type)))
+      ...Array.from(new Set(authFiles.map((file) => normalizeCredentialType(file))))
         .sort((a, b) => a.localeCompare(b))
         .map((type) => ({ value: type, label: type }))
     ],
-    [rows, t]
+    [authFiles, t]
   );
 
   const typeOptionSet = useMemo(
@@ -196,18 +196,26 @@ export function MonitorCredentialStatsCard({
     [effectiveTypeFilter, normalizedSearchTerm, rows]
   );
 
-  const credentialStats = useMemo(() => {
-    const fileByName = new Map(authFiles.map((file) => [file.name, file]));
-    return filteredRows.reduce(
-      (acc, row) => {
-        const file = row.authFileName ? fileByName.get(row.authFileName) : undefined;
-        const health = getCredentialHealth(file);
-        acc[health] += 1;
-        return acc;
-      },
-      { normal: 0, exhausted: 0, disabled: 0 } as Record<CredentialHealth, number>
-    );
-  }, [authFiles, filteredRows]);
+  const filteredAuthFiles = useMemo(
+    () =>
+      authFiles.filter((file) =>
+        effectiveTypeFilter === ALL_FILTER || normalizeCredentialType(file) === effectiveTypeFilter
+      ),
+    [authFiles, effectiveTypeFilter]
+  );
+
+  const credentialStats = useMemo(
+    () =>
+      filteredAuthFiles.reduce(
+        (acc, file) => {
+          const health = getCredentialHealth(file);
+          acc[health] += 1;
+          return acc;
+        },
+        { normal: 0, exhausted: 0, disabled: 0 } as Record<CredentialHealth, number>
+      ),
+    [filteredAuthFiles]
+  );
 
   const resolveQuotaKey = useCallback(
     (row: CredentialRow): string | null => {
