@@ -23,8 +23,7 @@ type SortKey =
   | 'tokens'
   | 'cost'
   | 'successRate'
-  | 'averageLatencyMs'
-  | 'totalLatencyMs';
+  | 'averageLatencyMs';
 type SortDir = 'asc' | 'desc';
 
 interface ModelStatWithRate extends ModelStat {
@@ -120,16 +119,6 @@ export function ModelStatsCard({ modelStats, loading, hasPrices }: ModelStatsCar
                         {arrow('averageLatencyMs')}
                       </button>
                     </th>
-                    <th className={styles.sortableHeader} aria-sort={ariaSort('totalLatencyMs')}>
-                      <button
-                        type="button"
-                        className={styles.sortHeaderButton}
-                        onClick={() => handleSort('totalLatencyMs')}
-                      >
-                        {t('usage_stats.total_time')}
-                        {arrow('totalLatencyMs')}
-                      </button>
-                    </th>
                     <th className={styles.sortableHeader} aria-sort={ariaSort('successRate')}>
                       <button
                         type="button"
@@ -176,9 +165,6 @@ export function ModelStatsCard({ modelStats, loading, hasPrices }: ModelStatsCar
                       <td>{formatCompactNumber(stat.tokens)}</td>
                       <td className={styles.durationCell}>
                         {formatDurationMs(stat.averageLatencyMs)}
-                      </td>
-                      <td className={styles.durationCell}>
-                        {formatDurationMs(stat.totalLatencyMs)}
                       </td>
                       <td>
                         <span
