@@ -28,7 +28,10 @@
 
 - 增强请求事件明细：
   - 支持自动刷新（15s/30s/1m/5m）
-  - 新增Tokens per second (TPS) 统计。
+  - 新增Tokens per second (TPS) 统计
+  - 新增首字延迟统计
+  - 点击每行前方的减号图标可以删除记录
+  - 新增缓存命中率统计
 ![monitor-request](docs/images/monitor-request.png)
   - 当请求失败时，可点击“失败”查看失败日志（实际上是该凭证的最新状态日志，非精确的请求日志）。
 ![monitor-error](docs/images/monitor-error.png)

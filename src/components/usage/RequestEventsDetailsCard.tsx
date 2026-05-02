@@ -164,7 +164,6 @@ export function RequestEventsDetailsCard({
 
   const [modelFilter, setModelFilter] = useState(ALL_FILTER);
   const [sourceFilter, setSourceFilter] = useState(ALL_FILTER);
-  const [authIndexFilter, setAuthIndexFilter] = useState(ALL_FILTER);
   const [resultFilter, setResultFilter] = useState(ALL_FILTER);
   const [autoRefreshValue, setAutoRefreshValue] = useState<AutoRefreshValue>(AUTO_REFRESH_OFF);
   const [customAutoRefreshSeconds, setCustomAutoRefreshSeconds] = useState(
@@ -429,16 +428,6 @@ export function RequestEventsDetailsCard({
     ];
   }, [rows, t]);
 
-  const authIndexOptions = useMemo(
-    () => [
-      { value: ALL_FILTER, label: t('usage_stats.filter_all') },
-      ...Array.from(new Set(rows.map((row) => row.authIndex))).map((authIndex) => ({
-        value: authIndex,
-        label: authIndex,
-      })),
-    ],
-    [rows, t]
-  );
   const resultOptions = useMemo(
     () => [
       { value: ALL_FILTER, label: t('usage_stats.filter_all') },
@@ -456,10 +445,6 @@ export function RequestEventsDetailsCard({
     () => new Set(sourceOptions.map((option) => option.value)),
     [sourceOptions]
   );
-  const authIndexOptionSet = useMemo(
-    () => new Set(authIndexOptions.map((option) => option.value)),
-    [authIndexOptions]
-  );
   const resultOptionSet = useMemo(
     () => new Set(resultOptions.map((option) => option.value)),
     [resultOptions]
@@ -467,9 +452,6 @@ export function RequestEventsDetailsCard({
 
   const effectiveModelFilter = modelOptionSet.has(modelFilter) ? modelFilter : ALL_FILTER;
   const effectiveSourceFilter = sourceOptionSet.has(sourceFilter) ? sourceFilter : ALL_FILTER;
-  const effectiveAuthIndexFilter = authIndexOptionSet.has(authIndexFilter)
-    ? authIndexFilter
-    : ALL_FILTER;
   const effectiveResultFilter = resultOptionSet.has(resultFilter) ? resultFilter : ALL_FILTER;
 
   const filteredRows = useMemo(
@@ -479,14 +461,12 @@ export function RequestEventsDetailsCard({
           effectiveModelFilter === ALL_FILTER || row.model === effectiveModelFilter;
         const sourceMatched =
           effectiveSourceFilter === ALL_FILTER || row.sourceKey === effectiveSourceFilter;
-        const authIndexMatched =
-          effectiveAuthIndexFilter === ALL_FILTER || row.authIndex === effectiveAuthIndexFilter;
         const resultMatched =
           effectiveResultFilter === ALL_FILTER ||
           (effectiveResultFilter === RESULT_FAILURE_FILTER ? row.failed : !row.failed);
-        return modelMatched && sourceMatched && authIndexMatched && resultMatched;
+        return modelMatched && sourceMatched && resultMatched;
       }),
-    [effectiveAuthIndexFilter, effectiveModelFilter, effectiveResultFilter, effectiveSourceFilter, rows]
+    [effectiveModelFilter, effectiveResultFilter, effectiveSourceFilter, rows]
   );
 
   const renderedRows = useMemo(() => filteredRows.slice(0, MAX_RENDERED_EVENTS), [filteredRows]);
@@ -494,13 +474,11 @@ export function RequestEventsDetailsCard({
   const hasActiveFilters =
     effectiveModelFilter !== ALL_FILTER ||
     effectiveSourceFilter !== ALL_FILTER ||
-    effectiveAuthIndexFilter !== ALL_FILTER ||
     effectiveResultFilter !== ALL_FILTER;
 
   const handleClearFilters = () => {
     setModelFilter(ALL_FILTER);
     setSourceFilter(ALL_FILTER);
-    setAuthIndexFilter(ALL_FILTER);
     setResultFilter(ALL_FILTER);
   };
 
@@ -684,19 +662,6 @@ export function RequestEventsDetailsCard({
             onChange={setSourceFilter}
             className={styles.requestEventsSelect}
             ariaLabel={t('usage_stats.request_events_filter_source')}
-            fullWidth={false}
-          />
-        </div>
-        <div className={styles.requestEventsFilterItem}>
-          <span className={styles.requestEventsFilterLabel}>
-            {t('usage_stats.request_events_filter_auth_index')}
-          </span>
-          <Select
-            value={effectiveAuthIndexFilter}
-            options={authIndexOptions}
-            onChange={setAuthIndexFilter}
-            className={styles.requestEventsSelect}
-            ariaLabel={t('usage_stats.request_events_filter_auth_index')}
             fullWidth={false}
           />
         </div>
