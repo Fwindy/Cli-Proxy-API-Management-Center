@@ -39,7 +39,29 @@ jobs:
         run: |
           set -euo pipefail
           before_sha="$(git rev-parse HEAD)"
-          git merge --no-edit upstream/main
+
+          merge_status=0
+          git merge --no-ff --no-commit upstream/main || merge_status=$?
+
+          if ! git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+            if [ "$merge_status" -ne 0 ]; then
+              exit "$merge_status"
+            fi
+
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git restore --source="$before_sha" --staged --worktree -- README.md
+
+          remaining_conflicts="$(git diff --name-only --diff-filter=U)"
+          if [ -n "$remaining_conflicts" ]; then
+            echo "Merge conflicts require manual resolution:"
+            printf '%s\n' "$remaining_conflicts"
+            exit 1
+          fi
+
+          git commit --allow-empty -m "Merge upstream/main"
           after_sha="$(git rev-parse HEAD)"
 
           if [ "$before_sha" = "$after_sha" ]; then
