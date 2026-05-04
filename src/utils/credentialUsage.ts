@@ -22,8 +22,10 @@ export interface CredentialUsageRow {
   successRate: number;
 }
 
+export const CREDENTIAL_COST_WINDOW_GRACE_MS = 2 * 1000;
+
 export interface CredentialCostEvent {
-  timestampMs: number;
+  completedAtMs: number;
   cost: number;
 }
 
@@ -104,6 +106,17 @@ const resolveCredentialMatch = (
   };
 };
 
+const getRequestCompletedAtMs = (detail: UsageDetail): number => {
+  const timestampMs = detail.__timestampMs ?? Date.parse(detail.timestamp);
+  if (!Number.isFinite(timestampMs) || timestampMs <= 0) return Number.NaN;
+
+  const latencyMs =
+    typeof detail.latency_ms === 'number' && Number.isFinite(detail.latency_ms) && detail.latency_ms > 0
+      ? detail.latency_ms
+      : 0;
+  return timestampMs + latencyMs;
+};
+
 export function buildCredentialUsageRows({
   usage,
   authFiles,
@@ -168,11 +181,11 @@ export function buildCredentialCostBuckets({
     const match = resolveCredentialMatch(detail, lookup);
     if (!match) return;
 
-    const timestampMs = detail.__timestampMs ?? Date.parse(detail.timestamp);
-    if (!Number.isFinite(timestampMs) || timestampMs <= 0) return;
+    const completedAtMs = getRequestCompletedAtMs(detail);
+    if (!Number.isFinite(completedAtMs) || completedAtMs <= 0) return;
 
     const events = buckets.get(match.rowKey) ?? [];
-    events.push({ timestampMs, cost: calculateCost(detail, modelPrices) });
+    events.push({ completedAtMs, cost: calculateCost(detail, modelPrices) });
     buckets.set(match.rowKey, events);
   });
 
@@ -182,10 +195,18 @@ export function buildCredentialCostBuckets({
 export function sumCostInWindow(
   events: CredentialCostEvent[],
   startMs: number,
-  endMs: number
+  endMs: number,
+  graceMs: number = 0
 ): number {
+  const normalizedGraceMs = Number.isFinite(graceMs) && graceMs > 0 ? graceMs : 0;
+  const effectiveStartMs = startMs - normalizedGraceMs;
+  const effectiveEndMs = endMs + normalizedGraceMs;
+
   return events.reduce(
-    (sum, item) => (item.timestampMs >= startMs && item.timestampMs <= endMs ? sum + item.cost : sum),
+    (sum, item) =>
+      item.completedAtMs >= effectiveStartMs && item.completedAtMs <= effectiveEndMs
+        ? sum + item.cost
+        : sum,
     0
   );
 }

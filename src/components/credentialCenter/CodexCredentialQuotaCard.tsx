@@ -10,6 +10,7 @@ import type { UsagePayload } from '@/components/usage';
 import { useQuotaStore } from '@/stores';
 import type { AuthFileItem, CodexQuotaState, CodexQuotaWindow } from '@/types';
 import {
+  CREDENTIAL_COST_WINDOW_GRACE_MS,
   buildCredentialCostBuckets,
   getCredentialRowKeyForFile,
   sumCostInWindow
@@ -100,11 +101,21 @@ export function CodexCredentialQuotaCard({
         fiveHourCost:
           fiveHourEndMs === null
             ? null
-            : sumCostInWindow(events, fiveHourEndMs - FIVE_HOURS_MS, fiveHourEndMs),
+            : sumCostInWindow(
+                events,
+                fiveHourEndMs - FIVE_HOURS_MS,
+                fiveHourEndMs,
+                CREDENTIAL_COST_WINDOW_GRACE_MS
+              ),
         weeklyCost:
           weeklyEndMs === null
             ? null
-            : sumCostInWindow(events, weeklyEndMs - SEVEN_DAYS_MS, weeklyEndMs)
+            : sumCostInWindow(
+                events,
+                weeklyEndMs - SEVEN_DAYS_MS,
+                weeklyEndMs,
+                CREDENTIAL_COST_WINDOW_GRACE_MS
+              )
       });
     });
 

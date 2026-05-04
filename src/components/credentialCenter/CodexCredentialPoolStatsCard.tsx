@@ -9,6 +9,7 @@ import type { UsagePayload } from '@/components/usage';
 import { useQuotaStore } from '@/stores';
 import type { AuthFileItem, CodexQuotaState, CodexQuotaWindow } from '@/types';
 import {
+  CREDENTIAL_COST_WINDOW_GRACE_MS,
   buildCredentialCostBuckets,
   getCredentialRowKeyForFile,
   sumCostInWindow
@@ -165,7 +166,8 @@ export function CodexCredentialPoolStatsCard({
             : sumCostInWindow(
                 costBuckets.get(getCredentialRowKeyForFile(file)) ?? [],
                 weeklyEndMs - SEVEN_DAYS_MS,
-                weeklyEndMs
+                weeklyEndMs,
+                CREDENTIAL_COST_WINDOW_GRACE_MS
               );
         const weeklyEstimate = estimateQuotaCost(weeklyCost, weeklyWindow);
         const remainingPercent = getRemainingPercentValue(weeklyWindow);
