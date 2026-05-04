@@ -22,7 +22,7 @@ export interface CredentialUsageRow {
   successRate: number;
 }
 
-export const CREDENTIAL_COST_WINDOW_GRACE_MS = 2 * 1000;
+export const CREDENTIAL_COST_WINDOW_GRACE_MS = 60 * 1000;
 
 export interface CredentialCostEvent {
   completedAtMs: number;
