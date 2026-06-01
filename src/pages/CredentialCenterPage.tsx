@@ -21,7 +21,7 @@ import {
 import styles from './CredentialCenterPage.module.scss';
 
 const TIME_RANGE_STORAGE_KEY = 'cli-proxy-credential-center-time-range-v1';
-const CREDENTIAL_USAGE_LOOKBACK_MS = 8 * 24 * 60 * 60 * 1000;
+const CREDENTIAL_USAGE_LOOKBACK_MS = 31 * 24 * 60 * 60 * 1000;
 
 const loadTimeRange = (): UsageTimeRange => {
   try {
@@ -180,6 +180,14 @@ export function CredentialCenterPage() {
         usage={usage as UsagePayload | null}
         modelPrices={modelPrices}
         authFiles={authFiles}
+        poolType="paid"
+      />
+
+      <CodexCredentialPoolStatsCard
+        usage={usage as UsagePayload | null}
+        modelPrices={modelPrices}
+        authFiles={authFiles}
+        poolType="free"
       />
     </div>
   );

@@ -24,8 +24,18 @@ import { isCodexFile } from '@/utils/quota';
 import { formatUsd, type ModelPrice } from '@/utils/usage';
 import styles from '@/pages/CredentialCenterPage.module.scss';
 
-const FIVE_HOURS_MS = 5 * 60 * 60 * 1000;
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+const WINDOW_MS_BY_KIND = {
+  'five-hour': 5 * 60 * 60 * 1000,
+  weekly: 7 * 24 * 60 * 60 * 1000,
+  monthly: 30 * 24 * 60 * 60 * 1000,
+  other: null
+} as const;
+
+const WINDOW_MS_BY_ID: Record<string, number | null> = {
+  'five-hour': WINDOW_MS_BY_KIND['five-hour'],
+  weekly: WINDOW_MS_BY_KIND.weekly,
+  monthly: WINDOW_MS_BY_KIND.monthly
+};
 
 interface CodexCredentialQuotaCardProps {
   usage: UsagePayload | null;
@@ -34,10 +44,31 @@ interface CodexCredentialQuotaCardProps {
   authFiles: AuthFileItem[];
 }
 
-const getQuotaWindow = (
+interface SelectedQuotaWindow {
+  window: CodexQuotaWindow;
+  meta: CodexQuotaWindowMeta | undefined;
+}
+
+const selectMaxQuotaWindow = (
   quotaState: CodexQuotaState | undefined,
-  id: 'five-hour' | 'weekly'
-): CodexQuotaWindow | undefined => quotaState?.windows?.find((window) => window.id === id);
+  metaById: Record<string, CodexQuotaWindowMeta> | undefined
+): SelectedQuotaWindow | null => {
+  const windows = quotaState?.windows ?? [];
+  let selected: SelectedQuotaWindow | null = null;
+  let selectedSeconds = -1;
+
+  windows.forEach((window, index) => {
+    const meta = metaById?.[window.id];
+    const fallbackMs = WINDOW_MS_BY_ID[window.id];
+    const seconds = meta?.windowSeconds ?? (typeof fallbackMs === 'number' ? fallbackMs / 1000 : 0);
+    if (seconds > selectedSeconds || (seconds === selectedSeconds && selected === null && index === 0)) {
+      selected = { window, meta };
+      selectedSeconds = seconds;
+    }
+  });
+
+  return selected;
+};
 
 const getRemainingPercentValue = (window: CodexQuotaWindow | undefined): number | null => {
   if (!window || typeof window.usedPercent !== 'number') return null;
@@ -99,42 +130,29 @@ export function CodexCredentialQuotaCard({
     [codexFiles, modelPrices, usage]
   );
 
-  const spendByFile = useMemo(() => {
-    const result = new Map<string, { fiveHourCost: number | null; weeklyCost: number | null }>();
+  const quotaRows = useMemo(() => {
+    const result = new Map<string, { selected: SelectedQuotaWindow | null; cost: number | null }>();
 
     codexFiles.forEach((file) => {
       const quotaState = codexQuota[file.name] as CodexQuotaState | undefined;
-      const quotaMeta = codexQuotaMeta[file.name];
-      const fiveHourEndMs = getWindowEndMs(
-        getQuotaWindow(quotaState, 'five-hour'),
-        quotaMeta?.windows['five-hour']
-      );
-      const weeklyEndMs = getWindowEndMs(
-        getQuotaWindow(quotaState, 'weekly'),
-        quotaMeta?.windows.weekly
-      );
-      const events = costBuckets.get(getCredentialRowKeyForFile(file)) ?? [];
+      const selected = selectMaxQuotaWindow(quotaState, codexQuotaMeta[file.name]?.windows);
+      const endMs = getWindowEndMs(selected?.window, selected?.meta);
+      const windowMs = selected?.meta?.windowKind
+        ? WINDOW_MS_BY_KIND[selected.meta.windowKind]
+        : selected?.window.id
+          ? WINDOW_MS_BY_ID[selected.window.id]
+          : null;
+      const cost =
+        selected === null || endMs === null || windowMs === null
+          ? null
+          : sumCostInWindow(
+              costBuckets.get(getCredentialRowKeyForFile(file)) ?? [],
+              endMs - windowMs,
+              endMs,
+              CREDENTIAL_COST_WINDOW_GRACE_MS
+            );
 
-      result.set(file.name, {
-        fiveHourCost:
-          fiveHourEndMs === null
-            ? null
-            : sumCostInWindow(
-                events,
-                fiveHourEndMs - FIVE_HOURS_MS,
-                fiveHourEndMs,
-                CREDENTIAL_COST_WINDOW_GRACE_MS
-              ),
-        weeklyCost:
-          weeklyEndMs === null
-            ? null
-            : sumCostInWindow(
-                events,
-                weeklyEndMs - SEVEN_DAYS_MS,
-                weeklyEndMs,
-                CREDENTIAL_COST_WINDOW_GRACE_MS
-              )
-      });
+      result.set(file.name, { selected, cost });
     });
 
     return result;
@@ -178,7 +196,7 @@ export function CodexCredentialQuotaCard({
     [setCodexQuota, setCodexQuotaMeta, t]
   );
 
-  const renderQuotaLimit = (quotaState: CodexQuotaState | undefined, id: 'five-hour' | 'weekly') => {
+  const renderQuotaLimit = (quotaState: CodexQuotaState | undefined, selected: SelectedQuotaWindow | null) => {
     if (quotaState?.status === 'loading') {
       return <span className={styles.quotaStatus}>{t('credential_center.quota_loading')}</span>;
     }
@@ -190,7 +208,7 @@ export function CodexCredentialQuotaCard({
       );
     }
 
-    const window = getQuotaWindow(quotaState, id);
+    const window = selected?.window;
     if (!window) return <span className={styles.quotaStatus}>--</span>;
 
     return (
@@ -240,22 +258,21 @@ export function CodexCredentialQuotaCard({
                 <th className={styles.refreshColumn}>
                   <span className={styles.visuallyHidden}>{t('credential_center.quota_refresh')}</span>
                 </th>
-                <th className={styles.quotaLimitColumn}>{t('credential_center.quota_limit_5h')}</th>
-                <th className={styles.quotaLimitColumn}>{t('credential_center.quota_limit_7d')}</th>
-                <th className={styles.quotaSpendColumn}>{t('credential_center.quota_spend_5h')}</th>
-                <th className={styles.quotaSpendColumn}>{t('credential_center.quota_spend_7d')}</th>
-                <th className={styles.quotaEstimateColumn}>{t('credential_center.quota_estimate_5h')}</th>
-                <th className={styles.quotaEstimateColumn}>{t('credential_center.quota_estimate_7d')}</th>
+                <th className={styles.quotaTypeColumn}>{t('credential_center.quota_type')}</th>
+                <th className={styles.quotaLimitColumn}>{t('credential_center.quota_limit')}</th>
+                <th className={styles.quotaSpendColumn}>{t('credential_center.quota_spend')}</th>
+                <th className={styles.quotaEstimateColumn}>{t('credential_center.quota_estimate')}</th>
               </tr>
             </thead>
             <tbody>
               {filteredCodexFiles.map((file) => {
                 const quotaState = codexQuota[file.name] as CodexQuotaState | undefined;
-                const fiveHourWindow = getQuotaWindow(quotaState, 'five-hour');
-                const weeklyWindow = getQuotaWindow(quotaState, 'weekly');
-                const spend = spendByFile.get(file.name);
-                const fiveHourEstimate = estimateQuotaCost(spend?.fiveHourCost, fiveHourWindow);
-                const weeklyEstimate = estimateQuotaCost(spend?.weeklyCost, weeklyWindow);
+                const row = quotaRows.get(file.name);
+                const selectedWindow = row?.selected?.window;
+                const selectedWindowLabel = selectedWindow?.labelKey
+                  ? t(selectedWindow.labelKey, selectedWindow.labelParams as Record<string, string | number>)
+                  : selectedWindow?.label;
+                const estimate = estimateQuotaCost(row?.cost, selectedWindow);
                 const isRefreshing = refreshingKeys[file.name] === true;
 
                 return (
@@ -276,23 +293,13 @@ export function CodexCredentialQuotaCard({
                         </Button>
                       </span>
                     </td>
-                    <td className={styles.quotaLimitColumn}>{renderQuotaLimit(quotaState, 'five-hour')}</td>
-                    <td className={styles.quotaLimitColumn}>{renderQuotaLimit(quotaState, 'weekly')}</td>
+                    <td className={styles.quotaTypeColumn}>{selectedWindowLabel ?? '--'}</td>
+                    <td className={styles.quotaLimitColumn}>{renderQuotaLimit(quotaState, row?.selected ?? null)}</td>
                     <td className={styles.quotaSpendColumn}>
-                      {spend?.fiveHourCost !== null && spend?.fiveHourCost !== undefined
-                        ? formatUsd(spend.fiveHourCost)
-                        : '--'}
-                    </td>
-                    <td className={styles.quotaSpendColumn}>
-                      {spend?.weeklyCost !== null && spend?.weeklyCost !== undefined
-                        ? formatUsd(spend.weeklyCost)
-                        : '--'}
+                      {row?.cost !== null && row?.cost !== undefined ? formatUsd(row.cost) : '--'}
                     </td>
                     <td className={styles.quotaEstimateColumn}>
-                      {fiveHourEstimate !== null ? formatUsd(fiveHourEstimate) : '--'}
-                    </td>
-                    <td className={styles.quotaEstimateColumn}>
-                      {weeklyEstimate !== null ? formatUsd(weeklyEstimate) : '--'}
+                      {estimate !== null ? formatUsd(estimate) : '--'}
                     </td>
                   </tr>
                 );

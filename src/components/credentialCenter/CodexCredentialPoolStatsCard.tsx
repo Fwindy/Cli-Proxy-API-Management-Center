@@ -24,15 +24,36 @@ import { formatUsd, type ModelPrice } from '@/utils/usage';
 import styles from '@/pages/CredentialCenterPage.module.scss';
 
 const DEFAULT_REFRESH_INTERVAL_SECONDS = '0.5';
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+const POOL_WINDOW_CONFIG = {
+  paid: {
+    titleKey: 'credential_center.codex_pool_paid_title',
+    emptyTitleKey: 'credential_center.codex_pool_paid_empty_title',
+    emptyDescKey: 'credential_center.codex_pool_paid_empty_desc',
+    windowId: 'weekly',
+    windowMs: 7 * 24 * 60 * 60 * 1000,
+    windowLabelKey: 'credential_center.codex_pool_window_7d'
+  },
+  free: {
+    titleKey: 'credential_center.codex_pool_free_title',
+    emptyTitleKey: 'credential_center.codex_pool_free_empty_title',
+    emptyDescKey: 'credential_center.codex_pool_free_empty_desc',
+    windowId: 'monthly',
+    windowMs: 30 * 24 * 60 * 60 * 1000,
+    windowLabelKey: 'credential_center.codex_pool_window_30d'
+  }
+} as const;
+
+type CodexPoolType = keyof typeof POOL_WINDOW_CONFIG;
+
+type RefreshMode = 'all' | 'missing';
 
 interface CodexCredentialPoolStatsCardProps {
   usage: UsagePayload | null;
   modelPrices: Record<string, ModelPrice>;
   authFiles: AuthFileItem[];
+  poolType: CodexPoolType;
 }
-
-type RefreshMode = 'all' | 'missing';
 
 interface BatchProgress {
   running: boolean;
@@ -49,8 +70,8 @@ interface CodexPoolRow {
   file: AuthFileItem;
   planType: string;
   quotaState: CodexQuotaState | undefined;
-  weeklyWindow: CodexQuotaWindow | undefined;
-  weeklyEstimate: number | null;
+  quotaWindow: CodexQuotaWindow | undefined;
+  quotaEstimate: number | null;
   remainingPercent: number | null;
   quotaFetched: boolean;
 }
@@ -61,7 +82,7 @@ interface CategoryAverage {
 }
 
 interface EffectiveCodexPoolRow extends CodexPoolRow {
-  effectiveWeeklyEstimate: number | null;
+  effectiveQuotaEstimate: number | null;
   effectiveRemainingEstimate: number | null;
 }
 
@@ -89,7 +110,7 @@ const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve
 
 const getQuotaWindow = (
   quotaState: CodexQuotaState | undefined,
-  id: 'weekly'
+  id: string
 ): CodexQuotaWindow | undefined => quotaState?.windows?.find((window) => window.id === id);
 
 const getRemainingPercentValue = (window: CodexQuotaWindow | undefined): number | null => {
@@ -120,15 +141,18 @@ const getPlanType = (file: AuthFileItem, quotaState: CodexQuotaState | undefined
   return normalized || 'free';
 };
 
+const shouldIncludePlanType = (poolType: CodexPoolType, planType: string): boolean =>
+  poolType === 'free' ? planType === 'free' : planType !== 'free';
+
 const getRefreshIntervalMs = (value: string): number => {
   const seconds = Number.parseFloat(value);
   if (!Number.isFinite(seconds) || seconds < 0) return Number.parseFloat(DEFAULT_REFRESH_INTERVAL_SECONDS) * 1000;
   return seconds * 1000;
 };
 
-const hasFetchedWeeklyQuota = (quotaState: CodexQuotaState | undefined): boolean => {
-  const weeklyWindow = getQuotaWindow(quotaState, 'weekly');
-  return quotaState?.status === 'success' && typeof weeklyWindow?.usedPercent === 'number';
+const hasFetchedQuota = (quotaState: CodexQuotaState | undefined, windowId: string): boolean => {
+  const quotaWindow = getQuotaWindow(quotaState, windowId);
+  return quotaState?.status === 'success' && typeof quotaWindow?.usedPercent === 'number';
 };
 
 const getPercentBucketKey = (remainingPercent: number | null): string => {
@@ -144,7 +168,8 @@ const getPercentBucketKey = (remainingPercent: number | null): string => {
 export function CodexCredentialPoolStatsCard({
   usage,
   modelPrices,
-  authFiles
+  authFiles,
+  poolType
 }: CodexCredentialPoolStatsCardProps) {
   const { t } = useTranslation();
   const [refreshIntervalSeconds, setRefreshIntervalSeconds] = useState(DEFAULT_REFRESH_INTERVAL_SECONDS);
@@ -154,47 +179,58 @@ export function CodexCredentialPoolStatsCard({
   const setCodexQuota = useQuotaStore((state) => state.setCodexQuota);
   const codexQuotaMeta = useCodexQuotaMetaStore((state) => state.codexQuotaMeta);
   const setCodexQuotaMeta = useCodexQuotaMetaStore((state) => state.setCodexQuotaMeta);
+  const poolConfig = POOL_WINDOW_CONFIG[poolType];
+  const windowLabel = t(poolConfig.windowLabelKey);
 
   const codexFiles = useMemo(
     () => authFiles.filter((file) => file.name && isCodexFile(file)),
     [authFiles]
   );
 
+  const poolFiles = useMemo(
+    () =>
+      codexFiles.filter((file) => {
+        const quotaState = codexQuota[file.name] as CodexQuotaState | undefined;
+        return shouldIncludePlanType(poolType, getPlanType(file, quotaState));
+      }),
+    [codexFiles, codexQuota, poolType]
+  );
+
   const costBuckets = useMemo(
-    () => buildCredentialCostBuckets({ usage, authFiles: codexFiles, modelPrices }),
-    [codexFiles, modelPrices, usage]
+    () => buildCredentialCostBuckets({ usage, authFiles: poolFiles, modelPrices }),
+    [modelPrices, poolFiles, usage]
   );
 
   const rows = useMemo<CodexPoolRow[]>(
     () =>
-      codexFiles.map((file) => {
+      poolFiles.map((file) => {
         const quotaState = codexQuota[file.name] as CodexQuotaState | undefined;
         const quotaMeta = codexQuotaMeta[file.name];
-        const weeklyWindow = getQuotaWindow(quotaState, 'weekly');
-        const weeklyEndMs = getWindowEndMs(weeklyWindow, quotaMeta?.windows.weekly);
-        const weeklyCost =
-          weeklyEndMs === null
+        const quotaWindow = getQuotaWindow(quotaState, poolConfig.windowId);
+        const quotaEndMs = getWindowEndMs(quotaWindow, quotaMeta?.windows[poolConfig.windowId]);
+        const quotaCost =
+          quotaEndMs === null
             ? null
             : sumCostInWindow(
                 costBuckets.get(getCredentialRowKeyForFile(file)) ?? [],
-                weeklyEndMs - SEVEN_DAYS_MS,
-                weeklyEndMs,
+                quotaEndMs - poolConfig.windowMs,
+                quotaEndMs,
                 CREDENTIAL_COST_WINDOW_GRACE_MS
               );
-        const weeklyEstimate = estimateQuotaCost(weeklyCost, weeklyWindow);
-        const remainingPercent = getRemainingPercentValue(weeklyWindow);
+        const quotaEstimate = estimateQuotaCost(quotaCost, quotaWindow);
+        const remainingPercent = getRemainingPercentValue(quotaWindow);
 
         return {
           file,
           planType: getPlanType(file, quotaState),
           quotaState,
-          weeklyWindow,
-          weeklyEstimate,
+          quotaWindow,
+          quotaEstimate,
           remainingPercent,
-          quotaFetched: hasFetchedWeeklyQuota(quotaState)
+          quotaFetched: hasFetchedQuota(quotaState, poolConfig.windowId)
         };
       }),
-    [codexFiles, codexQuota, codexQuotaMeta, costBuckets]
+    [codexQuota, codexQuotaMeta, costBuckets, poolConfig.windowId, poolConfig.windowMs, poolFiles]
   );
 
   const categoryAverages = useMemo(() => {
@@ -202,11 +238,11 @@ export function CodexCredentialPoolStatsCard({
 
     rows.forEach((row) => {
       const bucket = grouped.get(row.planType) ?? { total: 0, remaining: 0, totalCount: 0, remainingCount: 0 };
-      if (row.weeklyEstimate !== null) {
-        bucket.total += row.weeklyEstimate;
+      if (row.quotaEstimate !== null) {
+        bucket.total += row.quotaEstimate;
         bucket.totalCount += 1;
         if (row.remainingPercent !== null) {
-          bucket.remaining += row.weeklyEstimate * (row.remainingPercent / 100);
+          bucket.remaining += row.quotaEstimate * (row.remainingPercent / 100);
           bucket.remainingCount += 1;
         }
       }
@@ -227,14 +263,14 @@ export function CodexCredentialPoolStatsCard({
     () =>
       rows.map((row) => {
         const average = categoryAverages.get(row.planType);
-        const effectiveWeeklyEstimate = row.weeklyEstimate ?? average?.totalEstimate ?? null;
+        const effectiveQuotaEstimate = row.quotaEstimate ?? average?.totalEstimate ?? null;
         const effectiveRemainingEstimate =
-          effectiveWeeklyEstimate !== null && row.remainingPercent !== null
-            ? effectiveWeeklyEstimate * (row.remainingPercent / 100)
+          effectiveQuotaEstimate !== null && row.remainingPercent !== null
+            ? effectiveQuotaEstimate * (row.remainingPercent / 100)
             : average?.remainingEstimate ?? null;
         return {
           ...row,
-          effectiveWeeklyEstimate,
+          effectiveQuotaEstimate,
           effectiveRemainingEstimate
         };
       }),
@@ -242,7 +278,7 @@ export function CodexCredentialPoolStatsCard({
   );
 
   const totalEstimate = effectiveRows.reduce(
-    (sum, row) => sum + (row.effectiveWeeklyEstimate ?? 0),
+    (sum, row) => sum + (row.effectiveQuotaEstimate ?? 0),
     0
   );
   const totalRemainingEstimate = effectiveRows.reduce(
@@ -264,7 +300,7 @@ export function CodexCredentialPoolStatsCard({
       };
       summary.credentialCount += 1;
       if (row.quotaFetched) summary.fetchedCount += 1;
-      summary.totalEstimate += row.effectiveWeeklyEstimate ?? 0;
+      summary.totalEstimate += row.effectiveQuotaEstimate ?? 0;
       summary.remainingEstimate += row.effectiveRemainingEstimate ?? 0;
       summary.averageCredentialEstimate =
         summary.credentialCount > 0 ? summary.totalEstimate / summary.credentialCount : 0;
@@ -332,8 +368,8 @@ export function CodexCredentialPoolStatsCard({
       if (progress.running) return;
 
       const targetFiles = mode === 'all'
-        ? codexFiles
-        : codexFiles.filter((file) => !hasFetchedWeeklyQuota(codexQuota[file.name] as CodexQuotaState | undefined));
+        ? poolFiles
+        : poolFiles.filter((file) => !hasFetchedQuota(codexQuota[file.name] as CodexQuotaState | undefined, poolConfig.windowId));
       const intervalMs = getRefreshIntervalMs(refreshIntervalSeconds);
       const total = targetFiles.length;
 
@@ -374,7 +410,7 @@ export function CodexCredentialPoolStatsCard({
       setProgress((current) => ({ ...current, running: false, currentName: '' }));
       setBatchMessage(t('credential_center.codex_pool_batch_finished'));
     },
-    [codexFiles, codexQuota, progress.running, refreshIntervalSeconds, refreshOneFile, t]
+    [codexQuota, poolConfig.windowId, poolFiles, progress.running, refreshIntervalSeconds, refreshOneFile, t]
   );
 
   const progressPercent = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
@@ -382,7 +418,7 @@ export function CodexCredentialPoolStatsCard({
 
   return (
     <Card
-      title={t('credential_center.codex_pool_title')}
+      title={t(poolConfig.titleKey)}
       className={styles.codexPoolCard}
       extra={
         <div className={styles.codexPoolControls}>
@@ -390,7 +426,7 @@ export function CodexCredentialPoolStatsCard({
             variant="secondary"
             size="sm"
             onClick={() => void handleBatchRefresh('all')}
-            disabled={progress.running || codexFiles.length === 0}
+            disabled={progress.running || poolFiles.length === 0}
           >
             {t('credential_center.codex_pool_refresh_all')}
           </Button>
@@ -418,25 +454,25 @@ export function CodexCredentialPoolStatsCard({
         </div>
       }
     >
-      {codexFiles.length === 0 ? (
+      {poolFiles.length === 0 ? (
         <EmptyState
-          title={t('credential_center.codex_pool_empty_title')}
-          description={t('credential_center.codex_pool_empty_desc')}
+          title={t(poolConfig.emptyTitleKey)}
+          description={t(poolConfig.emptyDescKey)}
         />
       ) : (
         <div className={styles.codexPoolContent}>
           <div className={styles.codexPoolOverviewGrid}>
             <div className={styles.codexPoolMetricCard}>
-              <span className={styles.codexPoolMetricLabel}>{t('credential_center.codex_pool_total_estimate')}</span>
+              <span className={styles.codexPoolMetricLabel}>{t('credential_center.codex_pool_total_estimate', { window: windowLabel })}</span>
               <span className={styles.codexPoolMetricValue}>{formatUsd(totalEstimate)}</span>
             </div>
             <div className={styles.codexPoolMetricCard}>
-              <span className={styles.codexPoolMetricLabel}>{t('credential_center.codex_pool_remaining_estimate')}</span>
+              <span className={styles.codexPoolMetricLabel}>{t('credential_center.codex_pool_remaining_estimate', { window: windowLabel })}</span>
               <span className={styles.codexPoolMetricValue}>{formatUsd(totalRemainingEstimate)}</span>
             </div>
             <div className={styles.codexPoolMetricCard}>
               <span className={styles.codexPoolMetricLabel}>{t('credential_center.codex_pool_credentials')}</span>
-              <span className={styles.codexPoolMetricValue}>{codexFiles.length.toLocaleString()}</span>
+              <span className={styles.codexPoolMetricValue}>{poolFiles.length.toLocaleString()}</span>
               <span className={styles.codexPoolMetricSubtext}>
                 {t('credential_center.codex_pool_missing_count', { count: missingQuotaCount })}
               </span>
@@ -483,9 +519,9 @@ export function CodexCredentialPoolStatsCard({
                   </div>
                   <div className={styles.codexPoolCategoryStats}>
                     <span>{t('credential_center.codex_pool_category_fetched', { count: summary.fetchedCount })}</span>
-                    <span>{t('credential_center.codex_pool_category_total', { value: formatUsd(summary.totalEstimate) })}</span>
-                    <span>{t('credential_center.codex_pool_category_remaining', { value: formatUsd(summary.remainingEstimate) })}</span>
-                    <span>{t('credential_center.codex_pool_category_average', { value: formatUsd(summary.averageCredentialEstimate) })}</span>
+                    <span>{t('credential_center.codex_pool_category_total', { value: formatUsd(summary.totalEstimate), window: windowLabel })}</span>
+                    <span>{t('credential_center.codex_pool_category_remaining', { value: formatUsd(summary.remainingEstimate), window: windowLabel })}</span>
+                    <span>{t('credential_center.codex_pool_category_average', { value: formatUsd(summary.averageCredentialEstimate), window: windowLabel })}</span>
                   </div>
                 </div>
               ))}
@@ -493,7 +529,7 @@ export function CodexCredentialPoolStatsCard({
           </div>
 
           <div className={styles.codexPoolSection}>
-            <div className={styles.codexPoolSectionTitle}>{t('credential_center.codex_pool_distribution_title')}</div>
+            <div className={styles.codexPoolSectionTitle}>{t('credential_center.codex_pool_distribution_title', { window: windowLabel })}</div>
             <div className={styles.codexPoolBucketGrid}>
               {percentBuckets.map((bucket) => (
                 <div key={bucket.key} className={`${styles.codexPoolBucket} ${bucket.className}`}>
