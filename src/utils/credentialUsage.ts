@@ -27,6 +27,16 @@ export const CREDENTIAL_COST_WINDOW_GRACE_MS = 60 * 1000;
 export interface CredentialCostEvent {
   completedAtMs: number;
   cost: number;
+  tokens: number;
+  failed: boolean;
+}
+
+export interface CredentialWindowUsageSummary {
+  requests: number;
+  successCount: number;
+  failureCount: number;
+  tokens: number;
+  cost: number;
 }
 
 interface CredentialUsageInput {
@@ -185,11 +195,52 @@ export function buildCredentialCostBuckets({
     if (!Number.isFinite(completedAtMs) || completedAtMs <= 0) return;
 
     const events = buckets.get(match.rowKey) ?? [];
-    events.push({ completedAtMs, cost: calculateCost(detail, modelPrices) });
+    events.push({
+      completedAtMs,
+      cost: calculateCost(detail, modelPrices),
+      tokens: extractTotalTokens(detail),
+      failed: detail.failed === true
+    });
     buckets.set(match.rowKey, events);
   });
 
   return buckets;
+}
+
+export function sumCredentialUsageInWindow(
+  events: CredentialCostEvent[],
+  startMs: number,
+  endMs: number,
+  graceMs: number = 0
+): CredentialWindowUsageSummary {
+  const normalizedGraceMs = Number.isFinite(graceMs) && graceMs > 0 ? graceMs : 0;
+  const effectiveStartMs = startMs - normalizedGraceMs;
+  const effectiveEndMs = endMs + normalizedGraceMs;
+
+  return events.reduce<CredentialWindowUsageSummary>(
+    (summary, item) => {
+      if (item.completedAtMs < effectiveStartMs || item.completedAtMs > effectiveEndMs) {
+        return summary;
+      }
+
+      summary.requests += 1;
+      if (item.failed) {
+        summary.failureCount += 1;
+      } else {
+        summary.successCount += 1;
+      }
+      summary.tokens += item.tokens;
+      summary.cost += item.cost;
+      return summary;
+    },
+    {
+      requests: 0,
+      successCount: 0,
+      failureCount: 0,
+      tokens: 0,
+      cost: 0
+    }
+  );
 }
 
 export function sumCostInWindow(
@@ -198,15 +249,5 @@ export function sumCostInWindow(
   endMs: number,
   graceMs: number = 0
 ): number {
-  const normalizedGraceMs = Number.isFinite(graceMs) && graceMs > 0 ? graceMs : 0;
-  const effectiveStartMs = startMs - normalizedGraceMs;
-  const effectiveEndMs = endMs + normalizedGraceMs;
-
-  return events.reduce(
-    (sum, item) =>
-      item.completedAtMs >= effectiveStartMs && item.completedAtMs <= effectiveEndMs
-        ? sum + item.cost
-        : sum,
-    0
-  );
+  return sumCredentialUsageInWindow(events, startMs, endMs, graceMs).cost;
 }

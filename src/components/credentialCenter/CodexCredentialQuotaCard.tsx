@@ -14,14 +14,15 @@ import {
   CREDENTIAL_COST_WINDOW_GRACE_MS,
   buildCredentialCostBuckets,
   getCredentialRowKeyForFile,
-  sumCostInWindow
+  sumCredentialUsageInWindow,
+  type CredentialWindowUsageSummary
 } from '@/utils/credentialUsage';
 import {
   fetchCodexQuotaWithMeta,
   type CodexQuotaWindowMeta,
 } from '@/utils/codexQuotaMeta';
 import { isCodexFile } from '@/utils/quota';
-import { formatUsd, type ModelPrice } from '@/utils/usage';
+import { formatCompactNumber, formatUsd, type ModelPrice } from '@/utils/usage';
 import styles from '@/pages/CredentialCenterPage.module.scss';
 
 const WINDOW_MS_BY_KIND = {
@@ -98,6 +99,20 @@ const getWindowEndMs = (
   return endMs !== null && Number.isFinite(endMs) && endMs > 0 ? endMs : null;
 };
 
+const renderRequestCount = (summary: CredentialWindowUsageSummary | null | undefined) => {
+  if (!summary) return '--';
+
+  return (
+    <span className={styles.requestCountCell}>
+      <span>{summary.requests.toLocaleString()}</span>
+      <span className={styles.requestBreakdown}>
+        (<span className={styles.statSuccess}>{summary.successCount.toLocaleString()}</span>{' '}
+        <span className={styles.statFailure}>{summary.failureCount.toLocaleString()}</span>)
+      </span>
+    </span>
+  );
+};
+
 export function CodexCredentialQuotaCard({
   usage,
   loading,
@@ -131,7 +146,10 @@ export function CodexCredentialQuotaCard({
   );
 
   const quotaRows = useMemo(() => {
-    const result = new Map<string, { selected: SelectedQuotaWindow | null; cost: number | null }>();
+    const result = new Map<
+      string,
+      { selected: SelectedQuotaWindow | null; summary: CredentialWindowUsageSummary | null }
+    >();
 
     codexFiles.forEach((file) => {
       const quotaState = codexQuota[file.name] as CodexQuotaState | undefined;
@@ -142,17 +160,17 @@ export function CodexCredentialQuotaCard({
         : selected?.window.id
           ? WINDOW_MS_BY_ID[selected.window.id]
           : null;
-      const cost =
+      const summary =
         selected === null || endMs === null || windowMs === null
           ? null
-          : sumCostInWindow(
+          : sumCredentialUsageInWindow(
               costBuckets.get(getCredentialRowKeyForFile(file)) ?? [],
               endMs - windowMs,
               endMs,
               CREDENTIAL_COST_WINDOW_GRACE_MS
             );
 
-      result.set(file.name, { selected, cost });
+      result.set(file.name, { selected, summary });
     });
 
     return result;
@@ -260,6 +278,8 @@ export function CodexCredentialQuotaCard({
                 </th>
                 <th className={styles.quotaTypeColumn}>{t('credential_center.quota_type')}</th>
                 <th className={styles.quotaLimitColumn}>{t('credential_center.quota_limit')}</th>
+                <th className={styles.quotaRequestColumn}>{t('usage_stats.requests_count')}</th>
+                <th className={styles.quotaTokenColumn}>{t('usage_stats.tokens_count')}</th>
                 <th className={styles.quotaSpendColumn}>{t('credential_center.quota_spend')}</th>
                 <th className={styles.quotaEstimateColumn}>{t('credential_center.quota_estimate')}</th>
               </tr>
@@ -272,7 +292,8 @@ export function CodexCredentialQuotaCard({
                 const selectedWindowLabel = selectedWindow?.labelKey
                   ? t(selectedWindow.labelKey, selectedWindow.labelParams as Record<string, string | number>)
                   : selectedWindow?.label;
-                const estimate = estimateQuotaCost(row?.cost, selectedWindow);
+                const summary = row?.summary ?? null;
+                const estimate = estimateQuotaCost(summary?.cost, selectedWindow);
                 const isRefreshing = refreshingKeys[file.name] === true;
 
                 return (
@@ -295,8 +316,12 @@ export function CodexCredentialQuotaCard({
                     </td>
                     <td className={styles.quotaTypeColumn}>{selectedWindowLabel ?? '--'}</td>
                     <td className={styles.quotaLimitColumn}>{renderQuotaLimit(quotaState, row?.selected ?? null)}</td>
+                    <td className={styles.quotaRequestColumn}>{renderRequestCount(summary)}</td>
+                    <td className={styles.quotaTokenColumn}>
+                      {summary ? formatCompactNumber(summary.tokens) : '--'}
+                    </td>
                     <td className={styles.quotaSpendColumn}>
-                      {row?.cost !== null && row?.cost !== undefined ? formatUsd(row.cost) : '--'}
+                      {summary ? formatUsd(summary.cost) : '--'}
                     </td>
                     <td className={styles.quotaEstimateColumn}>
                       {estimate !== null ? formatUsd(estimate) : '--'}
