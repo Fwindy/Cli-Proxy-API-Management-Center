@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CODEX_CONFIG } from '@/components/quota';
+import { ANTIGRAVITY_CONFIG } from '@/components/quota';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -8,112 +8,27 @@ import { Input } from '@/components/ui/Input';
 import { IconRefreshCw } from '@/components/ui/icons';
 import type { UsagePayload } from '@/components/usage';
 import { useQuotaStore } from '@/stores';
-import { useCodexQuotaMetaStore } from '@/stores/useCodexQuotaMetaStore';
-import type { AuthFileItem, CodexQuotaState, CodexQuotaWindow } from '@/types';
+import type { AuthFileItem, AntigravityQuotaState, AntigravityQuotaGroup } from '@/types';
 import {
   CREDENTIAL_COST_WINDOW_GRACE_MS,
-  buildCredentialCostBuckets,
   getCredentialRowKeyForFile,
-  sumCredentialUsageInWindow,
-  type CredentialWindowUsageSummary
+  type CredentialCostEvent
 } from '@/utils/credentialUsage';
+import { isAntigravityFile } from '@/utils/quota';
 import {
-  fetchCodexQuotaWithMeta,
-  type CodexQuotaWindowMeta,
-} from '@/utils/codexQuotaMeta';
-import { isCodexFile } from '@/utils/quota';
-import { formatCompactNumber, formatUsd, type ModelPrice } from '@/utils/usage';
+  collectUsageDetails,
+  calculateCost,
+  extractTotalTokens,
+  normalizeAuthIndex,
+  formatCompactNumber,
+  formatUsd,
+  type ModelPrice,
+  type UsageDetail
+} from '@/utils/usage';
 import styles from '@/pages/CredentialCenterPage.module.scss';
 
-const WINDOW_MS_BY_KIND = {
-  'five-hour': 5 * 60 * 60 * 1000,
-  weekly: 7 * 24 * 60 * 60 * 1000,
-  monthly: 30 * 24 * 60 * 60 * 1000,
-  other: null
-} as const;
-
-const WINDOW_MS_BY_ID: Record<string, number | null> = {
-  'five-hour': WINDOW_MS_BY_KIND['five-hour'],
-  weekly: WINDOW_MS_BY_KIND.weekly,
-  monthly: WINDOW_MS_BY_KIND.monthly
-};
-
-interface CodexCredentialQuotaCardProps {
-  usage: UsagePayload | null;
-  loading: boolean;
-  modelPrices: Record<string, ModelPrice>;
-  authFiles: AuthFileItem[];
-}
-
-interface SelectedQuotaWindow {
-  window: CodexQuotaWindow;
-  meta: CodexQuotaWindowMeta | undefined;
-}
-
-const selectMaxQuotaWindow = (
-  quotaState: CodexQuotaState | undefined,
-  metaById: Record<string, CodexQuotaWindowMeta> | undefined
-): SelectedQuotaWindow | null => {
-  const windows = quotaState?.windows ?? [];
-  let selected: SelectedQuotaWindow | null = null;
-  let selectedSeconds = -1;
-
-  windows.forEach((window, index) => {
-    const meta = metaById?.[window.id];
-    const fallbackMs = WINDOW_MS_BY_ID[window.id];
-    const seconds = meta?.windowSeconds ?? (typeof fallbackMs === 'number' ? fallbackMs / 1000 : 0);
-    if (seconds > selectedSeconds || (seconds === selectedSeconds && selected === null && index === 0)) {
-      selected = { window, meta };
-      selectedSeconds = seconds;
-    }
-  });
-
-  return selected;
-};
-
-const getRemainingPercentValue = (window: CodexQuotaWindow | undefined): number | null => {
-  if (!window || typeof window.usedPercent !== 'number') return null;
-  return Math.max(0, Math.min(100, 100 - window.usedPercent));
-};
-
-const getRemainingPercentLabel = (window: CodexQuotaWindow): string => {
-  const remainingPercent = getRemainingPercentValue(window);
-  return remainingPercent === null ? '--' : `${Math.round(remainingPercent)}%`;
-};
-
-const estimateQuotaCost = (cost: number | null | undefined, window: CodexQuotaWindow | undefined): number | null => {
-  if (typeof cost !== 'number' || !Number.isFinite(cost)) return null;
-  const remainingPercent = getRemainingPercentValue(window);
-  if (remainingPercent === null) return null;
-  const usedRatio = 1 - remainingPercent / 100;
-  if (usedRatio <= 0) return null;
-  return cost / usedRatio;
-};
-
-const getWindowEndMs = (
-  window: CodexQuotaWindow | undefined,
-  meta: CodexQuotaWindowMeta | undefined
-): number | null => {
-  if (!window) return null;
-  const endMs = typeof meta?.resetAtUnix === 'number' ? meta.resetAtUnix * 1000 : null;
-  return endMs !== null && Number.isFinite(endMs) && endMs > 0 ? endMs : null;
-};
-
-const renderRequestCount = (summary: CredentialWindowUsageSummary | null | undefined) => {
-  if (!summary) return '--';
-
-  return (
-    <span className={styles.requestCountCell}>
-      <span>{summary.requests.toLocaleString()}</span>
-      <span className={styles.requestBreakdown}>
-        (<span className={styles.statSuccess}>{summary.successCount.toLocaleString()}</span>{' '}
-        <span className={styles.statFailure}>{summary.failureCount.toLocaleString()}</span>)
-      </span>
-    </span>
-  );
-};
-
 const DEFAULT_REFRESH_INTERVAL_SECONDS = '0.5';
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
@@ -141,71 +56,256 @@ const emptyProgress = (): BatchProgress => ({
   mode: null
 });
 
-export function CodexCredentialQuotaCard({
+interface AntigravityCredentialQuotaCardProps {
+  usage: UsagePayload | null;
+  loading: boolean;
+  modelPrices: Record<string, ModelPrice>;
+  authFiles: AuthFileItem[];
+  quotaType: 'claude' | 'gemini';
+}
+
+interface QuotaRow {
+  group: AntigravityQuotaGroup | null;
+  summary: {
+    requests: number;
+    successCount: number;
+    failureCount: number;
+    tokens: number;
+    cost: number;
+  } | null;
+}
+
+const selectQuotaGroup = (
+  quotaState: AntigravityQuotaState | undefined,
+  quotaType: 'claude' | 'gemini'
+): AntigravityQuotaGroup | null => {
+  const groups = quotaState?.groups ?? [];
+  if (quotaType === 'claude') {
+    return groups.find((g) => g.id === 'claude-gpt') ?? null;
+  }
+  return groups.find((g) => g.id.startsWith('gemini-')) ?? null;
+};
+
+const getRemainingPercentValue = (group: AntigravityQuotaGroup | null): number | null => {
+  if (!group || typeof group.remainingFraction !== 'number') return null;
+  return Math.max(0, Math.min(100, group.remainingFraction * 100));
+};
+
+const getRemainingPercentLabel = (group: AntigravityQuotaGroup | null): string => {
+  const remainingPercent = getRemainingPercentValue(group);
+  return remainingPercent === null ? '--' : `${Math.round(remainingPercent)}%`;
+};
+
+const estimateQuotaCost = (cost: number | null | undefined, group: AntigravityQuotaGroup | null): number | null => {
+  if (typeof cost !== 'number' || !Number.isFinite(cost)) return null;
+  const remainingPercent = getRemainingPercentValue(group);
+  if (remainingPercent === null) return null;
+  const usedRatio = 1 - remainingPercent / 100;
+  if (usedRatio <= 0) return null;
+  return cost / usedRatio;
+};
+
+const getResetTimeMs = (group: AntigravityQuotaGroup | null): number | null => {
+  if (!group || !group.resetTime) return null;
+  const resetMs = Date.parse(group.resetTime);
+  return Number.isFinite(resetMs) && resetMs > 0 ? resetMs : null;
+};
+
+const formatResetLabel = (resetTime: string | undefined): string => {
+  if (!resetTime) return '-';
+  try {
+    const date = new Date(resetTime);
+    if (Number.isNaN(date.getTime())) return '-';
+    return date.toLocaleString();
+  } catch {
+    return '-';
+  }
+};
+
+const renderRequestCount = (summary: { requests: number; successCount: number; failureCount: number } | null | undefined) => {
+  if (!summary) return '--';
+
+  return (
+    <span className={styles.requestCountCell}>
+      <span>{summary.requests.toLocaleString()}</span>
+      <span className={styles.requestBreakdown}>
+        (<span className={styles.statSuccess}>{summary.successCount.toLocaleString()}</span>{' '}
+        <span className={styles.statFailure}>{summary.failureCount.toLocaleString()}</span>)
+      </span>
+    </span>
+  );
+};
+
+const matchesQuotaType = (modelName: string | undefined, quotaType: 'claude' | 'gemini'): boolean => {
+  if (!modelName) return false;
+  const normalized = modelName.toLowerCase();
+  return normalized.includes(quotaType);
+};
+
+const buildFilteredCostBuckets = (
+  usage: UsagePayload | null,
+  authFiles: AuthFileItem[],
+  modelPrices: Record<string, ModelPrice>,
+  quotaType: 'claude' | 'gemini'
+): Map<string, CredentialCostEvent[]> => {
+  const buckets = new Map<string, CredentialCostEvent[]>();
+
+  authFiles.forEach((file) => {
+    if (file.name) {
+      buckets.set(getCredentialRowKeyForFile(file), []);
+    }
+  });
+
+  if (!usage) return buckets;
+
+  const authIndexToFile = new Map<string, AuthFileItem>();
+  const authFileNameToFile = new Map<string, AuthFileItem>();
+
+  authFiles.forEach((file) => {
+    const authIndex = normalizeAuthIndex(file['auth_index'] ?? file.authIndex);
+    if (authIndex) {
+      authIndexToFile.set(authIndex, file);
+    }
+    if (file.name) {
+      authFileNameToFile.set(file.name, file);
+    }
+  });
+
+  const allDetails = collectUsageDetails(usage);
+
+  allDetails.forEach((detail: UsageDetail) => {
+    // Filter by model name
+    if (!matchesQuotaType(detail.__modelName, quotaType)) {
+      return;
+    }
+
+    const authIndex = normalizeAuthIndex(detail.auth_index);
+    const sourceRaw = String(detail.source ?? '').trim();
+    const sourceText = sourceRaw.startsWith('t:') ? sourceRaw.slice(2) : sourceRaw;
+    const matchedFile =
+      (authIndex ? authIndexToFile.get(authIndex) : undefined) ??
+      (sourceRaw ? authFileNameToFile.get(sourceRaw) : undefined) ??
+      (sourceText ? authFileNameToFile.get(sourceText) : undefined);
+
+    if (!matchedFile?.name) return;
+
+    const timestampMs = detail.__timestampMs ?? Date.parse(detail.timestamp);
+    if (!Number.isFinite(timestampMs) || timestampMs <= 0) return;
+
+    const latencyMs =
+      typeof detail.latency_ms === 'number' && Number.isFinite(detail.latency_ms) && detail.latency_ms > 0
+        ? detail.latency_ms
+        : 0;
+    const completedAtMs = timestampMs + latencyMs;
+
+    const rowKey = getCredentialRowKeyForFile(matchedFile);
+    const events = buckets.get(rowKey) ?? [];
+    events.push({
+      completedAtMs,
+      cost: calculateCost(detail, modelPrices),
+      tokens: extractTotalTokens(detail),
+      failed: detail.failed === true
+    });
+    buckets.set(rowKey, events);
+  });
+
+  return buckets;
+};
+
+const sumUsageInWindow = (
+  events: CredentialCostEvent[],
+  startMs: number,
+  endMs: number,
+  graceMs: number = 0
+): { requests: number; successCount: number; failureCount: number; tokens: number; cost: number } => {
+  const normalizedGraceMs = Number.isFinite(graceMs) && graceMs > 0 ? graceMs : 0;
+  const effectiveStartMs = startMs - normalizedGraceMs;
+  const effectiveEndMs = endMs + normalizedGraceMs;
+
+  return events.reduce(
+    (summary, item) => {
+      if (item.completedAtMs < effectiveStartMs || item.completedAtMs > effectiveEndMs) {
+        return summary;
+      }
+
+      summary.requests += 1;
+      if (item.failed) {
+        summary.failureCount += 1;
+      } else {
+        summary.successCount += 1;
+      }
+      summary.tokens += item.tokens;
+      summary.cost += item.cost;
+      return summary;
+    },
+    {
+      requests: 0,
+      successCount: 0,
+      failureCount: 0,
+      tokens: 0,
+      cost: 0
+    }
+  );
+};
+
+export function AntigravityCredentialQuotaCard({
   usage,
   loading,
   modelPrices,
-  authFiles
-}: CodexCredentialQuotaCardProps) {
+  authFiles,
+  quotaType
+}: AntigravityCredentialQuotaCardProps) {
   const { t } = useTranslation();
   const [refreshingKeys, setRefreshingKeys] = useState<Record<string, boolean>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [refreshIntervalSeconds, setRefreshIntervalSeconds] = useState(DEFAULT_REFRESH_INTERVAL_SECONDS);
   const [progress, setProgress] = useState<BatchProgress>(emptyProgress);
   const [batchMessage, setBatchMessage] = useState<string | null>(null);
-  const codexQuota = useQuotaStore((state) => state.codexQuota);
-  const setCodexQuota = useQuotaStore((state) => state.setCodexQuota);
-  const codexQuotaMeta = useCodexQuotaMetaStore((state) => state.codexQuotaMeta);
-  const setCodexQuotaMeta = useCodexQuotaMetaStore((state) => state.setCodexQuotaMeta);
+  const antigravityQuota = useQuotaStore((state) => state.antigravityQuota);
+  const setAntigravityQuota = useQuotaStore((state) => state.setAntigravityQuota);
 
-  const codexFiles = useMemo(
-    () => authFiles.filter((file) => file.name && isCodexFile(file)),
+  const antigravityFiles = useMemo(
+    () => authFiles.filter((file) => file.name && isAntigravityFile(file)),
     [authFiles]
   );
   const normalizedSearchTerm = searchTerm.trim().toLowerCase();
-  const filteredCodexFiles = useMemo(
+  const filteredAntigravityFiles = useMemo(
     () =>
-      codexFiles.filter(
+      antigravityFiles.filter(
         (file) => !normalizedSearchTerm || file.name.toLowerCase().includes(normalizedSearchTerm)
       ),
-    [codexFiles, normalizedSearchTerm]
+    [antigravityFiles, normalizedSearchTerm]
   );
 
   const costBuckets = useMemo(
-    () => buildCredentialCostBuckets({ usage, authFiles: codexFiles, modelPrices }),
-    [codexFiles, modelPrices, usage]
+    () => buildFilteredCostBuckets(usage, antigravityFiles, modelPrices, quotaType),
+    [antigravityFiles, modelPrices, usage, quotaType]
   );
 
   const quotaRows = useMemo(() => {
-    const result = new Map<
-      string,
-      { selected: SelectedQuotaWindow | null; summary: CredentialWindowUsageSummary | null }
-    >();
+    const result = new Map<string, QuotaRow>();
 
-    codexFiles.forEach((file) => {
-      const quotaState = codexQuota[file.name] as CodexQuotaState | undefined;
-      const selected = selectMaxQuotaWindow(quotaState, codexQuotaMeta[file.name]?.windows);
-      const endMs = getWindowEndMs(selected?.window, selected?.meta);
-      const windowMs = selected?.meta?.windowKind
-        ? WINDOW_MS_BY_KIND[selected.meta.windowKind]
-        : selected?.window.id
-          ? WINDOW_MS_BY_ID[selected.window.id]
-          : null;
-      const summary =
-        selected === null || endMs === null || windowMs === null
-          ? null
-          : sumCredentialUsageInWindow(
-              costBuckets.get(getCredentialRowKeyForFile(file)) ?? [],
-              endMs - windowMs,
-              endMs,
-              CREDENTIAL_COST_WINDOW_GRACE_MS
-            );
+    antigravityFiles.forEach((file) => {
+      const quotaState = antigravityQuota[file.name] as AntigravityQuotaState | undefined;
+      const group = selectQuotaGroup(quotaState, quotaType);
+      const resetTimeMs = getResetTimeMs(group);
 
-      result.set(file.name, { selected, summary });
+      let summary: { requests: number; successCount: number; failureCount: number; tokens: number; cost: number } | null = null;
+      if (resetTimeMs !== null) {
+        const events = costBuckets.get(getCredentialRowKeyForFile(file)) ?? [];
+        summary = sumUsageInWindow(
+          events,
+          resetTimeMs - SEVEN_DAYS_MS,
+          resetTimeMs,
+          CREDENTIAL_COST_WINDOW_GRACE_MS
+        );
+      }
+
+      result.set(file.name, { group, summary });
     });
 
     return result;
-  }, [codexFiles, codexQuota, codexQuotaMeta, costBuckets]);
+  }, [antigravityFiles, antigravityQuota, costBuckets, quotaType]);
 
   const handleRefreshQuota = useCallback(
     async (file: AuthFileItem) => {
@@ -213,18 +313,17 @@ export function CodexCredentialQuotaCard({
       if (!quotaKey) return 'skipped' as const;
 
       setRefreshingKeys((prev) => ({ ...prev, [quotaKey]: true }));
-      setCodexQuota((prev) => ({
+      setAntigravityQuota((prev) => ({
         ...prev,
-        [quotaKey]: CODEX_CONFIG.buildLoadingState()
+        [quotaKey]: ANTIGRAVITY_CONFIG.buildLoadingState()
       }));
 
       try {
-        const { data, meta } = await fetchCodexQuotaWithMeta(file, t);
-        setCodexQuota((prev) => ({
+        const data = await ANTIGRAVITY_CONFIG.fetchQuota(file, t);
+        setAntigravityQuota((prev) => ({
           ...prev,
-          [quotaKey]: CODEX_CONFIG.buildSuccessState(data)
+          [quotaKey]: ANTIGRAVITY_CONFIG.buildSuccessState(data)
         }));
-        setCodexQuotaMeta(quotaKey, meta);
         return 'success' as const;
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : t('common.unknown_error');
@@ -232,9 +331,9 @@ export function CodexCredentialQuotaCard({
           typeof err === 'object' && err !== null && 'status' in err
             ? Number((err as { status?: unknown }).status)
             : undefined;
-        setCodexQuota((prev) => ({
+        setAntigravityQuota((prev) => ({
           ...prev,
-          [quotaKey]: CODEX_CONFIG.buildErrorState(
+          [quotaKey]: ANTIGRAVITY_CONFIG.buildErrorState(
             message,
             Number.isFinite(status) ? status : undefined
           )
@@ -244,21 +343,21 @@ export function CodexCredentialQuotaCard({
         setRefreshingKeys((prev) => ({ ...prev, [quotaKey]: false }));
       }
     },
-    [setCodexQuota, setCodexQuotaMeta, t]
+    [setAntigravityQuota, t]
   );
 
   const hasFetchedQuota = useCallback((file: AuthFileItem): boolean => {
-    const quotaState = codexQuota[file.name] as CodexQuotaState | undefined;
-    return quotaState?.status === 'success' && (quotaState.windows?.length ?? 0) > 0;
-  }, [codexQuota]);
+    const quotaState = antigravityQuota[file.name] as AntigravityQuotaState | undefined;
+    return quotaState?.status === 'success' && (quotaState.groups?.length ?? 0) > 0;
+  }, [antigravityQuota]);
 
   const handleBatchRefresh = useCallback(
     async (mode: 'all' | 'missing') => {
       if (progress.running) return;
 
       const targetFiles = mode === 'all'
-        ? codexFiles
-        : codexFiles.filter((file) => !hasFetchedQuota(file));
+        ? antigravityFiles
+        : antigravityFiles.filter((file) => !hasFetchedQuota(file));
       const intervalMs = getRefreshIntervalMs(refreshIntervalSeconds);
       const total = targetFiles.length;
 
@@ -295,17 +394,17 @@ export function CodexCredentialQuotaCard({
       setProgress((current) => ({ ...current, running: false }));
       setBatchMessage(t('credential_center.codex_pool_batch_finished'));
     },
-    [codexFiles, hasFetchedQuota, handleRefreshQuota, progress.running, refreshIntervalSeconds, t]
+    [antigravityFiles, hasFetchedQuota, handleRefreshQuota, progress.running, refreshIntervalSeconds, t]
   );
 
   const missingQuotaCount = useMemo(
-    () => codexFiles.filter((file) => !hasFetchedQuota(file)).length,
-    [codexFiles, hasFetchedQuota]
+    () => antigravityFiles.filter((file) => !hasFetchedQuota(file)).length,
+    [antigravityFiles, hasFetchedQuota]
   );
 
   const progressPercent = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
-  const renderQuotaLimit = (quotaState: CodexQuotaState | undefined, selected: SelectedQuotaWindow | null) => {
+  const renderQuotaLimit = (quotaState: AntigravityQuotaState | undefined, group: AntigravityQuotaGroup | null) => {
     if (quotaState?.status === 'loading') {
       return <span className={styles.quotaStatus}>{t('credential_center.quota_loading')}</span>;
     }
@@ -317,20 +416,29 @@ export function CodexCredentialQuotaCard({
       );
     }
 
-    const window = selected?.window;
-    if (!window) return <span className={styles.quotaStatus}>--</span>;
+    if (!group) return <span className={styles.quotaStatus}>--</span>;
 
     return (
-      <span className={styles.quotaLimitCellInner} title={window.resetLabel}>
-        <span className={styles.quotaLimitPrimary}>{getRemainingPercentLabel(window)}</span>
-        <span className={styles.quotaLimitSecondary}>{window.resetLabel}</span>
+      <span className={styles.quotaLimitCellInner} title={formatResetLabel(group.resetTime)}>
+        <span className={styles.quotaLimitPrimary}>{getRemainingPercentLabel(group)}</span>
+        <span className={styles.quotaLimitSecondary}>{formatResetLabel(group.resetTime)}</span>
       </span>
     );
   };
 
+  const titleKey = quotaType === 'claude'
+    ? 'credential_center.antigravity_claude_quota_title'
+    : 'credential_center.antigravity_gemini_quota_title';
+  const emptyTitleKey = quotaType === 'claude'
+    ? 'credential_center.antigravity_claude_quota_empty_title'
+    : 'credential_center.antigravity_gemini_quota_empty_title';
+  const emptyDescKey = quotaType === 'claude'
+    ? 'credential_center.antigravity_claude_quota_empty_desc'
+    : 'credential_center.antigravity_gemini_quota_empty_desc';
+
   return (
     <Card
-      title={t('credential_center.codex_quota_title')}
+      title={t(titleKey)}
       className={styles.fixedCard}
       extra={
         <div className={styles.cardHeaderControls}>
@@ -338,7 +446,7 @@ export function CodexCredentialQuotaCard({
             variant="secondary"
             size="sm"
             onClick={() => void handleBatchRefresh('all')}
-            disabled={progress.running || codexFiles.length === 0}
+            disabled={progress.running || antigravityFiles.length === 0}
           >
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
               <IconRefreshCw size={14} />
@@ -381,14 +489,14 @@ export function CodexCredentialQuotaCard({
         </div>
       }
     >
-      {loading && codexFiles.length === 0 ? (
+      {loading && antigravityFiles.length === 0 ? (
         <div className={styles.hint}>{t('common.loading')}</div>
-      ) : codexFiles.length === 0 ? (
+      ) : antigravityFiles.length === 0 ? (
         <EmptyState
-          title={t('credential_center.codex_quota_empty_title')}
-          description={t('credential_center.codex_quota_empty_desc')}
+          title={t(emptyTitleKey)}
+          description={t(emptyDescKey)}
         />
-      ) : filteredCodexFiles.length === 0 ? (
+      ) : filteredAntigravityFiles.length === 0 ? (
         <EmptyState
           title={t('monitoring_center.credential_no_result_title')}
           description={t('monitoring_center.credential_no_result_desc')}
@@ -433,12 +541,12 @@ export function CodexCredentialQuotaCard({
                 </tr>
               </thead>
               <tbody>
-                {filteredCodexFiles.map((file) => {
-                  const quotaState = codexQuota[file.name] as CodexQuotaState | undefined;
+                {filteredAntigravityFiles.map((file) => {
+                  const quotaState = antigravityQuota[file.name] as AntigravityQuotaState | undefined;
                   const row = quotaRows.get(file.name);
-                  const selectedWindow = row?.selected?.window;
+                  const group = row?.group ?? null;
                   const summary = row?.summary ?? null;
-                  const estimate = estimateQuotaCost(summary?.cost, selectedWindow);
+                  const estimate = estimateQuotaCost(summary?.cost, group);
                   const isRefreshing = refreshingKeys[file.name] === true;
 
                   return (
@@ -459,7 +567,7 @@ export function CodexCredentialQuotaCard({
                           </Button>
                         </span>
                       </td>
-                      <td className={styles.quotaLimitColumn}>{renderQuotaLimit(quotaState, row?.selected ?? null)}</td>
+                      <td className={styles.quotaLimitColumn}>{renderQuotaLimit(quotaState, group)}</td>
                       <td className={styles.quotaRequestColumn}>{renderRequestCount(summary)}</td>
                       <td className={styles.quotaTokenColumn}>
                         {summary ? formatCompactNumber(summary.tokens) : '--'}

@@ -273,7 +273,13 @@ export const forkTranslations = {
       "codex_pool_bucket_40_60": "40-60%",
       "codex_pool_bucket_60_80": "60-80%",
       "codex_pool_bucket_80_100": "80-100%",
-      "codex_pool_bucket_unknown": "未知"
+      "codex_pool_bucket_unknown": "未知",
+      "antigravity_claude_quota_title": "Antigravity凭证Claude额度",
+      "antigravity_gemini_quota_title": "Antigravity凭证Gemini额度",
+      "antigravity_claude_quota_empty_title": "暂无 Antigravity 凭证（Claude）",
+      "antigravity_claude_quota_empty_desc": "上传 Antigravity 凭证后即可查看 Claude 系列模型额度。",
+      "antigravity_gemini_quota_empty_title": "暂无 Antigravity 凭证（Gemini）",
+      "antigravity_gemini_quota_empty_desc": "上传 Antigravity 凭证后即可查看 Gemini 系列模型额度。"
     }
   },
   "zh-TW": {

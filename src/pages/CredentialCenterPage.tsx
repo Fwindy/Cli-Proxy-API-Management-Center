@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AuthRefreshQueueCountdownCard } from '@/components/credentialCenter/AuthRefreshQueueCountdownCard';
-import { CodexCredentialPoolStatsCard } from '@/components/credentialCenter/CodexCredentialPoolStatsCard';
 import { CodexCredentialQuotaCard } from '@/components/credentialCenter/CodexCredentialQuotaCard';
+import { AntigravityCredentialQuotaCard } from '@/components/credentialCenter/AntigravityCredentialQuotaCard';
 import { CredentialStatsCard } from '@/components/credentialCenter/CredentialStatsCard';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
@@ -176,19 +176,23 @@ export function CredentialCenterPage() {
         />
       </div>
 
-      <CodexCredentialPoolStatsCard
-        usage={usage as UsagePayload | null}
-        modelPrices={modelPrices}
-        authFiles={authFiles}
-        poolType="paid"
-      />
+      <div className={styles.credentialCenterGrid}>
+        <AntigravityCredentialQuotaCard
+          usage={usage as UsagePayload | null}
+          loading={loading}
+          modelPrices={modelPrices}
+          authFiles={authFiles}
+          quotaType="claude"
+        />
 
-      <CodexCredentialPoolStatsCard
-        usage={usage as UsagePayload | null}
-        modelPrices={modelPrices}
-        authFiles={authFiles}
-        poolType="free"
-      />
+        <AntigravityCredentialQuotaCard
+          usage={usage as UsagePayload | null}
+          loading={loading}
+          modelPrices={modelPrices}
+          authFiles={authFiles}
+          quotaType="gemini"
+        />
+      </div>
     </div>
   );
 }
