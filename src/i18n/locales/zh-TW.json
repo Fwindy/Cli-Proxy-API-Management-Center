@@ -148,7 +148,7 @@
     "quick_actions": "快速操作",
     "current_config": "目前設定",
     "management_keys": "管理金鑰",
-    "provider_keys_detail": "G:{{gemini}} C:{{codex}} Cl:{{claude}} V:{{vertex}} O:{{openai}} Amp:{{ampcode}}",
+    "provider_keys_detail": "G:{{gemini}} C:{{codex}} Cl:{{claude}} V:{{vertex}} O:{{openai}}",
     "oauth_credentials": "OAuth 憑證",
     "edit_settings": "編輯設定",
     "routing_strategy": "路由策略",
@@ -441,7 +441,7 @@
     "additional_secondary_window": "{{name}} 週限額",
     "additional_team_secondary_window": "{{name}} 月度限額",
     "plan_label": "方案",
-    "expires_label": "到期時間",
+    "expires_label": "續期時間",
     "reset_credits_label": "主動重置次數",
     "reset_button": "重置配額",
     "reset_confirm_title": "重置 Codex 配額",
@@ -1199,6 +1199,7 @@
     "description": "瀏覽插件註冊表,為目前後端安裝或更新插件。",
     "description_show_more": "展開描述",
     "description_show_less": "收起描述",
+    "source_name": "來源：{{source}}",
     "refresh": "重新整理",
     "retry": "重試",
     "load_failed": "插件商店載入失敗",
@@ -1240,7 +1241,24 @@
     "no_plugins_desc": "插件註冊表未回傳任何插件。",
     "no_matches": "沒有符合的插件",
     "no_matches_desc": "目前搜尋或篩選條件下沒有插件。",
-    "clear_filters": "清除篩選"
+    "clear_filters": "清除篩選",
+    "security_banner_title": "第三方插件以後端完整權限執行",
+    "security_banner_text": "插件會在代理服務內部執行程式碼，可讀取你的憑證與流量。請僅安裝你信任的插件——尤其要警惕任何並非由官方組織 router-for-me 發布的插件。",
+    "badge_untrusted": "第三方",
+    "gate_title": "安裝 {{name}}",
+    "gate_title_update": "更新 {{name}}",
+    "gate_warning": "如果你不閱讀以下內容，可能會發生意料之外的危險後果。",
+    "gate_effect_runs_code": "該插件會在你的代理後端內執行不受信任的程式碼，並可存取憑證、請求與回應。",
+    "gate_effect_no_review": "它並非由官方組織 router-for-me 發布或審核，且在後續版本中行為可能發生變化。",
+    "gate_effect_restart": "安裝會修改本機插件目錄，並可能需要重新啟動服務才能生效。",
+    "gate_untrusted_alert": "該插件並非來自官方組織 router-for-me。請僅在你完全信任其作者與來源時繼續。",
+    "gate_repository_label": "儲存庫",
+    "gate_source_label": "來源",
+    "gate_step1_action": "我要安裝此插件",
+    "gate_step2_action": "我已閱讀並理解上述風險",
+    "gate_step3_prompt": "如需確認，請在下方輸入框中鍵入 “{{token}}”",
+    "gate_step3_action": "安裝此插件",
+    "gate_step3_hint": "請輸入上方顯示的完整識別碼以啟用安裝。"
   },
   "plugin_resource": {
     "title": "插件頁面",
@@ -1335,8 +1353,6 @@
     "openai_provider_added": "OpenAI 供應商新增成功",
     "openai_provider_updated": "OpenAI 供應商更新成功",
     "openai_provider_deleted": "OpenAI 供應商刪除成功",
-    "ampcode_updated": "Ampcode 設定已更新",
-    "ampcode_upstream_api_key_cleared": "Ampcode upstream API key 覆寫已清除",
     "openai_model_name_required": "請填寫模型名稱",
     "openai_test_url_required": "請先填寫有效的 Base URL 以進行測試",
     "openai_test_key_required": "請至少填寫一個 API 金鑰以進行測試",
@@ -1411,17 +1427,14 @@
     },
     "categories": {
       "title": "提供商",
-      "activeCount": "{{active}}/{{total}} 活躍",
-      "ampcodeActive": "已連線",
-      "ampcodeInactive": "未設定"
+      "activeCount": "{{active}}/{{total}} 活躍"
     },
     "providerNames": {
       "gemini": "Gemini",
       "codex": "Codex",
       "claude": "Claude",
       "vertex": "Vertex",
-      "openaiCompatibility": "OpenAI 相容",
-      "ampcode": "Amp CLI"
+      "openaiCompatibility": "OpenAI 相容"
     },
     "table": {
       "key": "金鑰",
@@ -1433,12 +1446,10 @@
       "metrics": {
         "models": "模型",
         "keys": "金鑰",
-        "headers": "請求標頭",
-        "mappings": "映射"
+        "headers": "請求標頭"
       },
       "websocketsTag": "WebSockets",
       "cloakTag": "Cloak",
-      "noFallbackKey": "未設定備援金鑰",
       "empty": "尚未新增設定,點擊右上角新增。",
       "filterPlaceholder": "搜尋金鑰、位址、前綴…",
       "description": "在 {{route}} 下管理資源",
@@ -1521,25 +1532,9 @@
         "baseUrlRequired": "服務位址必填"
       }
     },
-    "ampcode": {
-      "upstreamUrl": "上游 URL",
-      "upstreamApiKey": "上游 API 金鑰(備援)",
-      "upstreamApiKeyHint": "未匹配金鑰映射時使用",
-      "keyMappingsSection": "上游金鑰映射",
-      "mappingRow": "映射 #{{index}}",
-      "clientKeys": "客戶端金鑰",
-      "clientKeysHint": "每行一個,匹配後轉發到上述上游金鑰",
-      "addMapping": "新增金鑰映射",
-      "modelMappingsSection": "模型映射",
-      "addModelMapping": "新增模型映射",
-      "forceModelMappings": "強制模型映射",
-      "forceModelMappingsHint": "啟用後,所有請求必須命中模型映射規則"
-    },
     "delete": {
       "title": "刪除資源",
-      "confirm": "確定要刪除 {{name}} 嗎?此操作不可復原。",
-      "ampcodeTitle": "清空 Amp CLI 設定",
-      "ampcodeConfirm": "確定要清空 Amp CLI 設定嗎?上游 URL、API 金鑰與模型映射都會被移除。"
+      "confirm": "確定要刪除 {{name}} 嗎?此操作不可復原。"
     },
     "toast": {
       "created": "建立成功",

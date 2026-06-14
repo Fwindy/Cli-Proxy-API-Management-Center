@@ -148,7 +148,7 @@
     "quick_actions": "Quick Actions",
     "current_config": "Current Configuration",
     "management_keys": "Management Keys",
-    "provider_keys_detail": "G:{{gemini}} C:{{codex}} Cl:{{claude}} V:{{vertex}} O:{{openai}} Amp:{{ampcode}}",
+    "provider_keys_detail": "G:{{gemini}} C:{{codex}} Cl:{{claude}} V:{{vertex}} O:{{openai}}",
     "oauth_credentials": "OAuth Credentials",
     "edit_settings": "Edit Settings",
     "routing_strategy": "Routing Strategy",
@@ -441,7 +441,7 @@
     "additional_secondary_window": "{{name}} weekly limit",
     "additional_team_secondary_window": "{{name}} monthly limit",
     "plan_label": "Plan",
-    "expires_label": "Expires",
+    "expires_label": "Renewal time",
     "reset_credits_label": "Manual resets",
     "reset_button": "Reset quota",
     "reset_confirm_title": "Reset Codex quota",
@@ -1173,6 +1173,7 @@
     "description": "Browse the plugin registry, then install or update plugins for the current backend.",
     "description_show_more": "Show more",
     "description_show_less": "Show less",
+    "source_name": "Source: {{source}}",
     "refresh": "Refresh",
     "retry": "Retry",
     "load_failed": "Failed to load the plugin store",
@@ -1214,7 +1215,24 @@
     "no_plugins_desc": "The plugin registry did not return any plugins.",
     "no_matches": "No matching plugins",
     "no_matches_desc": "No plugins match the current search or filter.",
-    "clear_filters": "Clear filters"
+    "clear_filters": "Clear filters",
+    "security_banner_title": "Third-party plugins run with full backend access",
+    "security_banner_text": "Plugins execute code inside the proxy service and can read your credentials and traffic. Only install plugins you trust — be especially careful with any plugin not published by the official router-for-me organization.",
+    "badge_untrusted": "Third-party",
+    "gate_title": "Install {{name}}",
+    "gate_title_update": "Update {{name}}",
+    "gate_warning": "Unexpected and harmful things can happen if you don't read this.",
+    "gate_effect_runs_code": "This plugin runs untrusted code inside your proxy backend, with access to credentials, requests, and responses.",
+    "gate_effect_no_review": "It is not published or reviewed by the official router-for-me organization and may behave differently in future versions.",
+    "gate_effect_restart": "Installing it changes the local plugin directory and may require a service restart to take effect.",
+    "gate_untrusted_alert": "This plugin is not from the official router-for-me organization. Only continue if you fully trust its author and source.",
+    "gate_repository_label": "Repository",
+    "gate_source_label": "Source",
+    "gate_step1_action": "I want to install this plugin",
+    "gate_step2_action": "I have read and understand these risks",
+    "gate_step3_prompt": "To confirm, type \"{{token}}\" in the box below",
+    "gate_step3_action": "Install this plugin",
+    "gate_step3_hint": "Enter the exact identifier shown above to enable installation."
   },
   "plugin_resource": {
     "title": "Plugin Page",
@@ -1309,8 +1327,6 @@
     "openai_provider_added": "OpenAI provider added successfully",
     "openai_provider_updated": "OpenAI provider updated successfully",
     "openai_provider_deleted": "OpenAI provider deleted successfully",
-    "ampcode_updated": "Ampcode configuration updated",
-    "ampcode_upstream_api_key_cleared": "Ampcode upstream API key override cleared",
     "openai_model_name_required": "Model name is required",
     "openai_test_url_required": "Please provide a valid Base URL before testing",
     "openai_test_key_required": "Please add at least one API key before testing",
@@ -1385,17 +1401,14 @@
     },
     "categories": {
       "title": "Providers",
-      "activeCount": "{{active}}/{{total}} active",
-      "ampcodeActive": "Connected",
-      "ampcodeInactive": "Not configured"
+      "activeCount": "{{active}}/{{total}} active"
     },
     "providerNames": {
       "gemini": "Gemini",
       "codex": "Codex",
       "claude": "Claude",
       "vertex": "Vertex",
-      "openaiCompatibility": "OpenAI Compatible",
-      "ampcode": "Amp CLI"
+      "openaiCompatibility": "OpenAI Compatible"
     },
     "table": {
       "key": "Key",
@@ -1407,12 +1420,10 @@
       "metrics": {
         "models": "Models",
         "keys": "Keys",
-        "headers": "Headers",
-        "mappings": "Mappings"
+        "headers": "Headers"
       },
       "websocketsTag": "WebSockets",
       "cloakTag": "Cloak",
-      "noFallbackKey": "No fallback key",
       "empty": "No resources yet, click \"New\" to add.",
       "filterPlaceholder": "Search keys, URLs, prefixes…",
       "description": "Manage resources under {{route}}",
@@ -1495,25 +1506,9 @@
         "baseUrlRequired": "Base URL is required"
       }
     },
-    "ampcode": {
-      "upstreamUrl": "Upstream URL",
-      "upstreamApiKey": "Upstream API key (fallback)",
-      "upstreamApiKeyHint": "Used when no key mapping matches",
-      "keyMappingsSection": "Upstream key mappings",
-      "mappingRow": "Mapping #{{index}}",
-      "clientKeys": "Client keys",
-      "clientKeysHint": "One per line; matched keys forward to the upstream key above",
-      "addMapping": "Add key mapping",
-      "modelMappingsSection": "Model mappings",
-      "addModelMapping": "Add model mapping",
-      "forceModelMappings": "Force model mappings",
-      "forceModelMappingsHint": "Requests that don't match a mapping are rejected"
-    },
     "delete": {
       "title": "Delete resource",
-      "confirm": "Delete {{name}}? This action cannot be undone.",
-      "ampcodeTitle": "Clear Amp CLI configuration",
-      "ampcodeConfirm": "Clear all Amp CLI configuration? Upstream URL, keys and model mappings will be removed."
+      "confirm": "Delete {{name}}? This action cannot be undone."
     },
     "toast": {
       "created": "Created",
