@@ -59,6 +59,7 @@ type RequestEventRow = {
   outputTokens: number;
   reasoningTokens: number;
   cachedTokens: number;
+  cacheCreationTokens: number;
   totalTokens: number;
   cacheHitRatio: number | null;
 };
@@ -357,6 +358,10 @@ export function RequestEventsDetailsCard({
         Math.max(toNumber(detail.tokens?.cached_tokens), 0),
         Math.max(toNumber(detail.tokens?.cache_tokens), 0)
       );
+      const cacheCreationTokens = Math.max(
+        toNumber(detail.tokens?.cache_creation_tokens),
+        0
+      );
       const totalTokens = Math.max(
         toNumber(detail.tokens?.total_tokens),
         extractTotalTokens(detail)
@@ -402,6 +407,7 @@ export function RequestEventsDetailsCard({
         outputTokens,
         reasoningTokens,
         cachedTokens,
+        cacheCreationTokens,
         totalTokens,
         cacheHitRatio,
       };
@@ -546,6 +552,7 @@ export function RequestEventsDetailsCard({
       'output_tokens',
       'reasoning_tokens',
       'cached_tokens',
+      'cache_creation_tokens',
       'total_tokens',
       'cache_hit_ratio',
     ];
@@ -570,6 +577,7 @@ export function RequestEventsDetailsCard({
         row.outputTokens,
         row.reasoningTokens,
         row.cachedTokens,
+        row.cacheCreationTokens,
         row.totalTokens,
         row.cacheHitRatio !== null ? row.cacheHitRatio.toFixed(4) : '',
       ]
@@ -610,6 +618,7 @@ export function RequestEventsDetailsCard({
         output_tokens: row.outputTokens,
         reasoning_tokens: row.reasoningTokens,
         cached_tokens: row.cachedTokens,
+        cache_creation_tokens: row.cacheCreationTokens,
         total_tokens: row.totalTokens,
       },
       ...(row.cacheHitRatio !== null ? { cache_hit_ratio: row.cacheHitRatio } : {}),
@@ -817,6 +826,7 @@ export function RequestEventsDetailsCard({
                 <col className={styles.requestEventsTokenCol} />
                 <col className={styles.requestEventsTokenCol} />
                 <col className={styles.requestEventsTokenCol} />
+                <col className={styles.requestEventsTokenCol} />
               </colgroup>
               <thead>
                 <tr>
@@ -834,6 +844,7 @@ export function RequestEventsDetailsCard({
                   <th>{t('usage_stats.output_tokens')}</th>
                   <th>{t('usage_stats.reasoning_tokens')}</th>
                   <th>{t('usage_stats.cached_tokens')}</th>
+                  <th>{t('usage_stats.cache_creation_tokens')}</th>
                   <th>{t('usage_stats.total_tokens')}</th>
                   <th>{t('usage_stats.cache_hit')}</th>
                 </tr>
@@ -923,6 +934,7 @@ export function RequestEventsDetailsCard({
                     <td>{row.outputTokens.toLocaleString()}</td>
                     <td>{row.reasoningTokens.toLocaleString()}</td>
                     <td>{row.cachedTokens.toLocaleString()}</td>
+                    <td>{row.cacheCreationTokens.toLocaleString()}</td>
                     <td>{row.totalTokens.toLocaleString()}</td>
                     <td>{formatCacheHitRatio(row.cacheHitRatio)}</td>
                   </tr>

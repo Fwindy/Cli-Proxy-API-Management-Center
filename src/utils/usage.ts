@@ -55,10 +55,34 @@ export interface RateStats {
   tokenCount: number;
 }
 
+/**
+ * 上下文阶梯价格：当请求的输入上下文（input_tokens）超过 threshold 时，
+ * 改用该档的 4 个价格计算。多个阶梯时取命中的最高档。
+ */
+export interface ContextTierPrice {
+  /** 触发阈值：input_tokens 超过该值时启用本档价格 */
+  threshold: number;
+  /** 输入价格（$/1M） */
+  input: number;
+  /** 输出价格（$/1M） */
+  output: number;
+  /** 缓存创建价格（$/1M） */
+  cacheCreate: number;
+  /** 缓存读取价格（$/1M） */
+  cacheRead: number;
+}
+
 export interface ModelPrice {
-  prompt: number;
-  completion: number;
-  cache: number;
+  /** 输入价格（$/1M） */
+  input: number;
+  /** 输出价格（$/1M） */
+  output: number;
+  /** 缓存创建价格（$/1M） */
+  cacheCreate: number;
+  /** 缓存读取价格（$/1M） */
+  cacheRead: number;
+  /** 上下文阶梯价格（升序，可选） */
+  contextTiers?: ContextTierPrice[];
 }
 
 export interface UsageDetail {
@@ -165,7 +189,9 @@ export interface ModelStatsSummary {
 export type UsageTimeRange = '7h' | '24h' | '7d' | '30d' | 'all';
 
 const TOKENS_PER_PRICE_UNIT = 1_000_000;
-const MODEL_PRICE_STORAGE_KEY = 'cli-proxy-model-prices-v2';
+const MODEL_PRICE_STORAGE_KEY = 'cli-proxy-model-prices';
+/** 旧版价格存储键（{prompt, completion, cache}），仅用于一次性迁移 */
+const LEGACY_MODEL_PRICE_STORAGE_KEY = 'cli-proxy-model-prices-v2';
 const USAGE_ENDPOINT_METHOD_REGEX = /^(GET|POST|PUT|PATCH|DELETE|OPTIONS|HEAD)\s+(\S+)/i;
 const USAGE_TIME_RANGE_MS: Record<Exclude<UsageTimeRange, 'all'>, number> = {
   '7h': 7 * 60 * 60 * 1000,
@@ -1155,7 +1181,53 @@ export function getModelNamesFromUsage(usageData: unknown): string[] {
 }
 
 /**
+ * 依据输入上下文规模（input_tokens 总量）选择适用的价格档：
+ * 命中的最高阶梯（threshold < contextTokens）优先，否则用基础价。
+ */
+export function resolvePriceForContext(
+  price: ModelPrice,
+  contextTokens: number
+): { input: number; output: number; cacheCreate: number; cacheRead: number } {
+  const base = {
+    input: Number(price.input) || 0,
+    output: Number(price.output) || 0,
+    cacheCreate: Number(price.cacheCreate) || 0,
+    cacheRead: Number(price.cacheRead) || 0,
+  };
+
+  const tiers = Array.isArray(price.contextTiers) ? price.contextTiers : [];
+  if (!tiers.length || !Number.isFinite(contextTokens)) {
+    return base;
+  }
+
+  let chosen: ContextTierPrice | null = null;
+  for (const tier of tiers) {
+    const threshold = Number(tier?.threshold);
+    if (!Number.isFinite(threshold) || contextTokens <= threshold) continue;
+    if (!chosen || threshold > chosen.threshold) {
+      chosen = tier;
+    }
+  }
+
+  if (!chosen) {
+    return base;
+  }
+
+  return {
+    input: Number(chosen.input) || 0,
+    output: Number(chosen.output) || 0,
+    cacheCreate: Number(chosen.cacheCreate) || 0,
+    cacheRead: Number(chosen.cacheRead) || 0,
+  };
+}
+
+/**
  * 计算成本数据
+ *
+ * 后端把 input_tokens 报为输入总量（含缓存读取/缓存创建），因此纯输入 =
+ * input_tokens − 缓存读取 − 缓存创建（下取 0）。缓存读取按 cachedTokens
+ * （cached_tokens/cache_tokens 归一化值）计费，缓存创建按 cache_creation_tokens
+ * 计费。价格档按 input_tokens 命中上下文阶梯，最后统一乘 Tier 倍率。
  */
 export function calculateCost(
   detail: UsageDetail,
@@ -1171,26 +1243,35 @@ export function calculateCost(
   const rawCompletionTokens = Number(tokens.output_tokens);
   const rawCachedTokensPrimary = Number(tokens.cached_tokens);
   const rawCachedTokensAlternate = Number(tokens.cache_tokens);
+  const rawCacheCreationTokens = Number(tokens.cache_creation_tokens);
 
   const inputTokens = Number.isFinite(rawInputTokens) ? Math.max(rawInputTokens, 0) : 0;
   const completionTokens = Number.isFinite(rawCompletionTokens)
     ? Math.max(rawCompletionTokens, 0)
     : 0;
-  const cachedTokens = Math.max(
+  // 缓存读取通用字段：cached_tokens / cache_tokens。
+  const cacheReadTokens = Math.max(
     Number.isFinite(rawCachedTokensPrimary) ? Math.max(rawCachedTokensPrimary, 0) : 0,
     Number.isFinite(rawCachedTokensAlternate) ? Math.max(rawCachedTokensAlternate, 0) : 0
   );
-  const promptTokens = Math.max(inputTokens - cachedTokens, 0);
+  const cacheCreationTokens = Number.isFinite(rawCacheCreationTokens)
+    ? Math.max(rawCacheCreationTokens, 0)
+    : 0;
+  // input_tokens 为总量：扣除缓存读取与缓存创建后得到按输入价计费的纯输入。
+  const pureInputTokens = Math.max(inputTokens - cacheReadTokens - cacheCreationTokens, 0);
 
-  const promptCost = (promptTokens / TOKENS_PER_PRICE_UNIT) * (Number(price.prompt) || 0);
-  const cachedCost = (cachedTokens / TOKENS_PER_PRICE_UNIT) * (Number(price.cache) || 0);
-  const completionCost =
-    (completionTokens / TOKENS_PER_PRICE_UNIT) * (Number(price.completion) || 0);
+  const tierPrice = resolvePriceForContext(price, inputTokens);
+
+  const inputCost = (pureInputTokens / TOKENS_PER_PRICE_UNIT) * tierPrice.input;
+  const cacheReadCost = (cacheReadTokens / TOKENS_PER_PRICE_UNIT) * tierPrice.cacheRead;
+  const cacheCreationCost = (cacheCreationTokens / TOKENS_PER_PRICE_UNIT) * tierPrice.cacheCreate;
+  const completionCost = (completionTokens / TOKENS_PER_PRICE_UNIT) * tierPrice.output;
   // fork: 命中「模型名称 + Service Tier」规则时按配置倍率放大花费。
   // 兼容 service_tier / serviceTier 两种字段名（getModelStats/getApiStats 透传原始 record，未做规范化）。
   const serviceTier = detail.service_tier ?? (detail as { serviceTier?: string }).serviceTier;
   const multiplier = resolveTierMultiplier(modelName, serviceTier);
-  const total = (promptCost + cachedCost + completionCost) * multiplier;
+  const total =
+    (inputCost + cacheReadCost + cacheCreationCost + completionCost) * multiplier;
   return Number.isFinite(total) && total > 0 ? total : 0;
 }
 
@@ -1208,6 +1289,89 @@ export function calculateTotalCost(
   return details.reduce((sum, detail) => sum + calculateCost(detail, modelPrices), 0);
 }
 
+const toNonNegativePrice = (value: unknown): number => {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+};
+
+/** 规范化上下文阶梯：threshold 为有限正数，价格取非负；按阈值升序 */
+const sanitizeContextTiers = (value: unknown): ContextTierPrice[] => {
+  if (!Array.isArray(value)) return [];
+  const tiers: ContextTierPrice[] = [];
+  value.forEach((raw) => {
+    if (!isRecord(raw)) return;
+    const threshold = Number(raw.threshold);
+    if (!Number.isFinite(threshold) || threshold <= 0) return;
+    tiers.push({
+      threshold,
+      input: toNonNegativePrice(raw.input),
+      output: toNonNegativePrice(raw.output),
+      cacheCreate: toNonNegativePrice(raw.cacheCreate),
+      cacheRead: toNonNegativePrice(raw.cacheRead),
+    });
+  });
+  return tiers.sort((a, b) => a.threshold - b.threshold);
+};
+
+/** 把旧版 {prompt, completion, cache} 结构映射为新版价格 */
+const migrateLegacyModelPrice = (price: Record<string, unknown>): ModelPrice | null => {
+  const promptRaw = Number(price.prompt);
+  const completionRaw = Number(price.completion);
+  const cacheRaw = Number(price.cache);
+  if (!Number.isFinite(promptRaw) && !Number.isFinite(completionRaw) && !Number.isFinite(cacheRaw)) {
+    return null;
+  }
+  return {
+    input: toNonNegativePrice(promptRaw),
+    output: toNonNegativePrice(completionRaw),
+    // 旧版 cache 单价对应缓存读取；缓存创建旧版无此概念，默认 0。
+    cacheRead: toNonNegativePrice(cacheRaw),
+    cacheCreate: 0,
+  };
+};
+
+const parseStoredModelPrices = (
+  raw: string | null,
+  legacy: boolean
+): Record<string, ModelPrice> => {
+  if (!raw) return {};
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return {};
+  }
+  if (!isRecord(parsed)) return {};
+
+  const normalized: Record<string, ModelPrice> = {};
+  Object.entries(parsed).forEach(([model, price]) => {
+    if (!model || !isRecord(price)) return;
+
+    if (legacy) {
+      const migrated = migrateLegacyModelPrice(price);
+      if (migrated) normalized[model] = migrated;
+      return;
+    }
+
+    const hasAnyPrice =
+      Number.isFinite(Number(price.input)) ||
+      Number.isFinite(Number(price.output)) ||
+      Number.isFinite(Number(price.cacheCreate)) ||
+      Number.isFinite(Number(price.cacheRead));
+    const tiers = sanitizeContextTiers(price.contextTiers);
+    if (!hasAnyPrice && tiers.length === 0) return;
+
+    normalized[model] = {
+      input: toNonNegativePrice(price.input),
+      output: toNonNegativePrice(price.output),
+      cacheCreate: toNonNegativePrice(price.cacheCreate),
+      cacheRead: toNonNegativePrice(price.cacheRead),
+      ...(tiers.length ? { contextTiers: tiers } : {}),
+    };
+  });
+  return normalized;
+};
+
 /**
  * 从 localStorage 加载模型价格
  */
@@ -1217,45 +1381,12 @@ export function loadModelPrices(): Record<string, ModelPrice> {
       return {};
     }
     const raw = localStorage.getItem(MODEL_PRICE_STORAGE_KEY);
-    if (!raw) {
-      return {};
+    if (raw !== null) {
+      return parseStoredModelPrices(raw, false);
     }
-    const parsed: unknown = JSON.parse(raw);
-    if (!isRecord(parsed)) {
-      return {};
-    }
-    const normalized: Record<string, ModelPrice> = {};
-    Object.entries(parsed).forEach(([model, price]: [string, unknown]) => {
-      if (!model) return;
-      const priceRecord = isRecord(price) ? price : null;
-      const promptRaw = Number(priceRecord?.prompt);
-      const completionRaw = Number(priceRecord?.completion);
-      const cacheRaw = Number(priceRecord?.cache);
-
-      if (
-        !Number.isFinite(promptRaw) &&
-        !Number.isFinite(completionRaw) &&
-        !Number.isFinite(cacheRaw)
-      ) {
-        return;
-      }
-
-      const prompt = Number.isFinite(promptRaw) && promptRaw >= 0 ? promptRaw : 0;
-      const completion = Number.isFinite(completionRaw) && completionRaw >= 0 ? completionRaw : 0;
-      const cache =
-        Number.isFinite(cacheRaw) && cacheRaw >= 0
-          ? cacheRaw
-          : Number.isFinite(promptRaw) && promptRaw >= 0
-            ? promptRaw
-            : prompt;
-
-      normalized[model] = {
-        prompt,
-        completion,
-        cache,
-      };
-    });
-    return normalized;
+    // 新键不存在时，一次性从旧键迁移（不写回，首次保存即落到新键）。
+    const legacyRaw = localStorage.getItem(LEGACY_MODEL_PRICE_STORAGE_KEY);
+    return parseStoredModelPrices(legacyRaw, true);
   } catch {
     return {};
   }

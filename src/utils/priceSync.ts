@@ -5,6 +5,8 @@
  * Ported from the "CPA同步价格" Tampermonkey userscript.
  */
 
+import type { ContextTierPrice, ModelPrice } from './usage';
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -45,11 +47,10 @@ export interface NameMapping {
   target: string;
 }
 
-export interface SyncedPrice {
-  prompt: number;
-  completion: number;
-  cache: number;
-}
+/**
+ * 同步得到的模型价格，结构与 {@link ModelPrice} 保持一致，便于直接并入价格表。
+ */
+export type SyncedPrice = ModelPrice;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -280,6 +281,38 @@ function formatPrice(value: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/**
+ * 从 models.dev 的 cost.tiers 中提取 tier.type === 'context' 的阶梯价格。
+ * 每档：threshold=tier.size，价格取该档的 input/output/cache_write/cache_read；
+ * 结果按阈值升序。无有效阶梯时返回 undefined。
+ */
+function parseContextTiers(cost: Record<string, unknown>): ContextTierPrice[] | undefined {
+  const rawTiers = Array.isArray(cost.tiers) ? cost.tiers : [];
+  const tiers: ContextTierPrice[] = [];
+
+  for (const rawTier of rawTiers) {
+    if (!rawTier || typeof rawTier !== 'object') continue;
+    const entry = rawTier as Record<string, unknown>;
+    const tierMeta =
+      entry.tier && typeof entry.tier === 'object' ? (entry.tier as Record<string, unknown>) : null;
+    if (!tierMeta || tierMeta.type !== 'context') continue;
+
+    const threshold = Number(tierMeta.size);
+    if (!Number.isFinite(threshold) || threshold <= 0) continue;
+
+    tiers.push({
+      threshold,
+      input: formatPrice(entry.input),
+      output: formatPrice(entry.output),
+      cacheCreate: formatPrice(entry.cache_write),
+      cacheRead: formatPrice(entry.cache_read),
+    });
+  }
+
+  if (!tiers.length) return undefined;
+  return tiers.sort((a, b) => a.threshold - b.threshold);
+}
+
 function processData(
   rawData: Record<string, unknown>,
   allowed: AllowedModelNames,
@@ -332,10 +365,13 @@ function processData(
         const existing = chosenProviders[matched];
         if (existing && existing.rank < rank) continue;
 
+        const contextTiers = parseContextTiers(cost);
         newPrices[matched] = {
-          prompt: formatPrice(cost.input),
-          completion: formatPrice(cost.output),
-          cache: formatPrice((cost as Record<string, unknown>).cache_read ?? (cost as Record<string, unknown>).cache_write ?? 0),
+          input: formatPrice(cost.input),
+          output: formatPrice(cost.output),
+          cacheCreate: formatPrice((cost as Record<string, unknown>).cache_write),
+          cacheRead: formatPrice((cost as Record<string, unknown>).cache_read),
+          ...(contextTiers ? { contextTiers } : {}),
         };
         chosenProviders[matched] = { name: providerName, rank };
       }

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
-import type { ModelPrice } from '@/utils/usage';
+import type { ContextTierPrice, ModelPrice } from '@/utils/usage';
 import {
   loadSyncSettings,
   saveSyncSettings,
@@ -38,6 +38,47 @@ interface TierMultiplierDraft {
   multiplier: string;
 }
 
+/** 上下文阶梯价格的可编辑行（数值以字符串编辑，保存时转数字） */
+interface ContextTierDraft {
+  threshold: string;
+  input: string;
+  output: string;
+  cacheCreate: string;
+  cacheRead: string;
+}
+
+/** 解析非负价格/数值，非法或空串归 0 */
+const parseNonNegative = (value: string): number => {
+  const n = Number.parseFloat(value);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+};
+
+/** 把草稿阶梯行规范化为 ContextTierPrice[]（阈值须为正数，按阈值升序） */
+const draftsToContextTiers = (drafts: ContextTierDraft[]): ContextTierPrice[] => {
+  const tiers: ContextTierPrice[] = [];
+  drafts.forEach((row) => {
+    const threshold = Number.parseFloat(row.threshold);
+    if (!Number.isFinite(threshold) || threshold <= 0) return;
+    tiers.push({
+      threshold,
+      input: parseNonNegative(row.input),
+      output: parseNonNegative(row.output),
+      cacheCreate: parseNonNegative(row.cacheCreate),
+      cacheRead: parseNonNegative(row.cacheRead),
+    });
+  });
+  return tiers.sort((a, b) => a.threshold - b.threshold);
+};
+
+const contextTiersToDrafts = (tiers?: ContextTierPrice[]): ContextTierDraft[] =>
+  (tiers ?? []).map((tier) => ({
+    threshold: String(tier.threshold),
+    input: String(tier.input),
+    output: String(tier.output),
+    cacheCreate: String(tier.cacheCreate),
+    cacheRead: String(tier.cacheRead),
+  }));
+
 export function PriceSettingsCard({
   modelNames,
   modelPrices,
@@ -47,15 +88,18 @@ export function PriceSettingsCard({
 
   // Add form state
   const [selectedModel, setSelectedModel] = useState('');
-  const [promptPrice, setPromptPrice] = useState('');
-  const [completionPrice, setCompletionPrice] = useState('');
-  const [cachePrice, setCachePrice] = useState('');
+  const [inputPrice, setInputPrice] = useState('');
+  const [outputPrice, setOutputPrice] = useState('');
+  const [cacheCreatePrice, setCacheCreatePrice] = useState('');
+  const [cacheReadPrice, setCacheReadPrice] = useState('');
 
   // Edit modal state
   const [editModel, setEditModel] = useState<string | null>(null);
-  const [editPrompt, setEditPrompt] = useState('');
-  const [editCompletion, setEditCompletion] = useState('');
-  const [editCache, setEditCache] = useState('');
+  const [editInput, setEditInput] = useState('');
+  const [editOutput, setEditOutput] = useState('');
+  const [editCacheCreate, setEditCacheCreate] = useState('');
+  const [editCacheRead, setEditCacheRead] = useState('');
+  const [editTiers, setEditTiers] = useState<ContextTierDraft[]>([]);
 
   // Sync modal state
   const [syncOpen, setSyncOpen] = useState(false);
@@ -72,15 +116,21 @@ export function PriceSettingsCard({
 
   const handleSavePrice = () => {
     if (!selectedModel) return;
-    const prompt = parseFloat(promptPrice) || 0;
-    const completion = parseFloat(completionPrice) || 0;
-    const cache = cachePrice.trim() === '' ? prompt : parseFloat(cachePrice) || 0;
-    const newPrices = { ...modelPrices, [selectedModel]: { prompt, completion, cache } };
-    onPricesChange(newPrices);
+    const existingTiers = modelPrices[selectedModel]?.contextTiers;
+    const price: ModelPrice = {
+      input: parseNonNegative(inputPrice),
+      output: parseNonNegative(outputPrice),
+      cacheCreate: parseNonNegative(cacheCreatePrice),
+      cacheRead: parseNonNegative(cacheReadPrice),
+      // 新增/更新基础价时保留该模型已有的上下文阶梯（阶梯在编辑弹窗中维护）。
+      ...(existingTiers && existingTiers.length ? { contextTiers: existingTiers } : {}),
+    };
+    onPricesChange({ ...modelPrices, [selectedModel]: price });
     setSelectedModel('');
-    setPromptPrice('');
-    setCompletionPrice('');
-    setCachePrice('');
+    setInputPrice('');
+    setOutputPrice('');
+    setCacheCreatePrice('');
+    setCacheReadPrice('');
   };
 
   const handleDeletePrice = (model: string) => {
@@ -92,32 +142,58 @@ export function PriceSettingsCard({
   const handleOpenEdit = (model: string) => {
     const price = modelPrices[model];
     setEditModel(model);
-    setEditPrompt(price?.prompt?.toString() || '');
-    setEditCompletion(price?.completion?.toString() || '');
-    setEditCache(price?.cache?.toString() || '');
+    setEditInput(price?.input?.toString() || '');
+    setEditOutput(price?.output?.toString() || '');
+    setEditCacheCreate(price?.cacheCreate?.toString() || '');
+    setEditCacheRead(price?.cacheRead?.toString() || '');
+    setEditTiers(contextTiersToDrafts(price?.contextTiers));
   };
 
   const handleSaveEdit = () => {
     if (!editModel) return;
-    const prompt = parseFloat(editPrompt) || 0;
-    const completion = parseFloat(editCompletion) || 0;
-    const cache = editCache.trim() === '' ? prompt : parseFloat(editCache) || 0;
-    const newPrices = { ...modelPrices, [editModel]: { prompt, completion, cache } };
-    onPricesChange(newPrices);
+    const tiers = draftsToContextTiers(editTiers);
+    const price: ModelPrice = {
+      input: parseNonNegative(editInput),
+      output: parseNonNegative(editOutput),
+      cacheCreate: parseNonNegative(editCacheCreate),
+      cacheRead: parseNonNegative(editCacheRead),
+      ...(tiers.length ? { contextTiers: tiers } : {}),
+    };
+    onPricesChange({ ...modelPrices, [editModel]: price });
     setEditModel(null);
   };
+
+  const handleAddTier = useCallback(() => {
+    setEditTiers((rows) => [
+      ...rows,
+      { threshold: '', input: '', output: '', cacheCreate: '', cacheRead: '' },
+    ]);
+  }, []);
+
+  const handleTierChange = useCallback(
+    (index: number, field: keyof ContextTierDraft, value: string) => {
+      setEditTiers((rows) => rows.map((row, i) => (i === index ? { ...row, [field]: value } : row)));
+    },
+    []
+  );
+
+  const handleDeleteTier = useCallback((index: number) => {
+    setEditTiers((rows) => rows.filter((_, i) => i !== index));
+  }, []);
 
   const handleModelSelect = (value: string) => {
     setSelectedModel(value);
     const price = modelPrices[value];
     if (price) {
-      setPromptPrice(price.prompt.toString());
-      setCompletionPrice(price.completion.toString());
-      setCachePrice(price.cache.toString());
+      setInputPrice(price.input.toString());
+      setOutputPrice(price.output.toString());
+      setCacheCreatePrice(price.cacheCreate.toString());
+      setCacheReadPrice(price.cacheRead.toString());
     } else {
-      setPromptPrice('');
-      setCompletionPrice('');
-      setCachePrice('');
+      setInputPrice('');
+      setOutputPrice('');
+      setCacheCreatePrice('');
+      setCacheReadPrice('');
     }
   };
 
@@ -295,31 +371,41 @@ export function PriceSettingsCard({
               />
             </div>
             <div className={styles.formField}>
-              <label>{t('usage_stats.model_price_prompt')} ($/1M)</label>
+              <label>{t('usage_stats.model_price_input')} ($/1M)</label>
               <Input
                 type="number"
-                value={promptPrice}
-                onChange={(e) => setPromptPrice(e.target.value)}
+                value={inputPrice}
+                onChange={(e) => setInputPrice(e.target.value)}
                 placeholder="0.00"
                 step="0.0001"
               />
             </div>
             <div className={styles.formField}>
-              <label>{t('usage_stats.model_price_completion')} ($/1M)</label>
+              <label>{t('usage_stats.model_price_output')} ($/1M)</label>
               <Input
                 type="number"
-                value={completionPrice}
-                onChange={(e) => setCompletionPrice(e.target.value)}
+                value={outputPrice}
+                onChange={(e) => setOutputPrice(e.target.value)}
                 placeholder="0.00"
                 step="0.0001"
               />
             </div>
             <div className={styles.formField}>
-              <label>{t('usage_stats.model_price_cache')} ($/1M)</label>
+              <label>{t('usage_stats.model_price_cache_create')} ($/1M)</label>
               <Input
                 type="number"
-                value={cachePrice}
-                onChange={(e) => setCachePrice(e.target.value)}
+                value={cacheCreatePrice}
+                onChange={(e) => setCacheCreatePrice(e.target.value)}
+                placeholder="0.00"
+                step="0.0001"
+              />
+            </div>
+            <div className={styles.formField}>
+              <label>{t('usage_stats.model_price_cache_read')} ($/1M)</label>
+              <Input
+                type="number"
+                value={cacheReadPrice}
+                onChange={(e) => setCacheReadPrice(e.target.value)}
                 placeholder="0.00"
                 step="0.0001"
               />
@@ -341,14 +427,24 @@ export function PriceSettingsCard({
                     <span className={styles.priceModel}>{model}</span>
                     <div className={styles.priceMeta}>
                       <span>
-                        {t('usage_stats.model_price_prompt')}: ${price.prompt.toFixed(4)}/1M
+                        {t('usage_stats.model_price_input')}: ${price.input.toFixed(4)}/1M
                       </span>
                       <span>
-                        {t('usage_stats.model_price_completion')}: ${price.completion.toFixed(4)}/1M
+                        {t('usage_stats.model_price_output')}: ${price.output.toFixed(4)}/1M
                       </span>
                       <span>
-                        {t('usage_stats.model_price_cache')}: ${price.cache.toFixed(4)}/1M
+                        {t('usage_stats.model_price_cache_create')}: ${price.cacheCreate.toFixed(4)}/1M
                       </span>
+                      <span>
+                        {t('usage_stats.model_price_cache_read')}: ${price.cacheRead.toFixed(4)}/1M
+                      </span>
+                      {price.contextTiers && price.contextTiers.length > 0 && (
+                        <span>
+                          {t('usage_stats.model_price_context_tier_badge', {
+                            count: price.contextTiers.length,
+                          })}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className={styles.priceActions}>
@@ -383,38 +479,125 @@ export function PriceSettingsCard({
             </Button>
           </div>
         }
-        width={420}
+        width={560}
       >
         <div className={styles.editModalBody}>
-          <div className={styles.formField}>
-            <label>{t('usage_stats.model_price_prompt')} ($/1M)</label>
-            <Input
-              type="number"
-              value={editPrompt}
-              onChange={(e) => setEditPrompt(e.target.value)}
-              placeholder="0.00"
-              step="0.0001"
-            />
+          <div className={styles.formRow}>
+            <div className={styles.formField}>
+              <label>{t('usage_stats.model_price_input')} ($/1M)</label>
+              <Input
+                type="number"
+                value={editInput}
+                onChange={(e) => setEditInput(e.target.value)}
+                placeholder="0.00"
+                step="0.0001"
+              />
+            </div>
+            <div className={styles.formField}>
+              <label>{t('usage_stats.model_price_output')} ($/1M)</label>
+              <Input
+                type="number"
+                value={editOutput}
+                onChange={(e) => setEditOutput(e.target.value)}
+                placeholder="0.00"
+                step="0.0001"
+              />
+            </div>
           </div>
-          <div className={styles.formField}>
-            <label>{t('usage_stats.model_price_completion')} ($/1M)</label>
-            <Input
-              type="number"
-              value={editCompletion}
-              onChange={(e) => setEditCompletion(e.target.value)}
-              placeholder="0.00"
-              step="0.0001"
-            />
+          <div className={styles.formRow}>
+            <div className={styles.formField}>
+              <label>{t('usage_stats.model_price_cache_create')} ($/1M)</label>
+              <Input
+                type="number"
+                value={editCacheCreate}
+                onChange={(e) => setEditCacheCreate(e.target.value)}
+                placeholder="0.00"
+                step="0.0001"
+              />
+            </div>
+            <div className={styles.formField}>
+              <label>{t('usage_stats.model_price_cache_read')} ($/1M)</label>
+              <Input
+                type="number"
+                value={editCacheRead}
+                onChange={(e) => setEditCacheRead(e.target.value)}
+                placeholder="0.00"
+                step="0.0001"
+              />
+            </div>
           </div>
-          <div className={styles.formField}>
-            <label>{t('usage_stats.model_price_cache')} ($/1M)</label>
-            <Input
-              type="number"
-              value={editCache}
-              onChange={(e) => setEditCache(e.target.value)}
-              placeholder="0.00"
-              step="0.0001"
-            />
+
+          {/* Context tier prices */}
+          <div className={styles.contextTierSection}>
+            <div className={styles.contextTierHeader}>
+              <span className={styles.pricesTitle}>
+                {t('usage_stats.model_price_context_tiers')}
+              </span>
+              <Button variant="secondary" size="sm" onClick={handleAddTier}>
+                {t('usage_stats.model_price_context_tier_add')}
+              </Button>
+            </div>
+            <span className={styles.syncFieldHint}>
+              {t('usage_stats.model_price_context_tier_hint')}
+            </span>
+            {editTiers.map((tier, index) => (
+              <div className={styles.formRow} key={index}>
+                <div className={styles.formField}>
+                  <label>{t('usage_stats.model_price_context_tier_threshold')}</label>
+                  <Input
+                    type="number"
+                    value={tier.threshold}
+                    onChange={(e) => handleTierChange(index, 'threshold', e.target.value)}
+                    placeholder="200000"
+                    step="1"
+                    min="0"
+                  />
+                </div>
+                <div className={styles.formField}>
+                  <label>{t('usage_stats.model_price_input')}</label>
+                  <Input
+                    type="number"
+                    value={tier.input}
+                    onChange={(e) => handleTierChange(index, 'input', e.target.value)}
+                    placeholder="0.00"
+                    step="0.0001"
+                  />
+                </div>
+                <div className={styles.formField}>
+                  <label>{t('usage_stats.model_price_output')}</label>
+                  <Input
+                    type="number"
+                    value={tier.output}
+                    onChange={(e) => handleTierChange(index, 'output', e.target.value)}
+                    placeholder="0.00"
+                    step="0.0001"
+                  />
+                </div>
+                <div className={styles.formField}>
+                  <label>{t('usage_stats.model_price_cache_create')}</label>
+                  <Input
+                    type="number"
+                    value={tier.cacheCreate}
+                    onChange={(e) => handleTierChange(index, 'cacheCreate', e.target.value)}
+                    placeholder="0.00"
+                    step="0.0001"
+                  />
+                </div>
+                <div className={styles.formField}>
+                  <label>{t('usage_stats.model_price_cache_read')}</label>
+                  <Input
+                    type="number"
+                    value={tier.cacheRead}
+                    onChange={(e) => handleTierChange(index, 'cacheRead', e.target.value)}
+                    placeholder="0.00"
+                    step="0.0001"
+                  />
+                </div>
+                <Button variant="danger" size="sm" onClick={() => handleDeleteTier(index)}>
+                  {t('common.delete')}
+                </Button>
+              </div>
+            ))}
           </div>
         </div>
       </Modal>

@@ -756,6 +756,22 @@
   gap: 12px;
 }
 
+// Context tier prices (in edit modal)
+.contextTierSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.contextTierHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 // Price Sync Modal
 .syncModalBody {
   display: flex;
