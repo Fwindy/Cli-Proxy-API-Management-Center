@@ -104,6 +104,7 @@ export interface UsageDetail {
   };
   thinking?: UsageThinking | null;
   reasoning_effort?: string;
+  provider?: string;
   service_tier?: string;
   failed: boolean;
   failure_status_code?: number;
@@ -297,6 +298,12 @@ const normalizeServiceTier = (value: unknown): string | undefined => {
   return trimmed ? trimmed : undefined;
 };
 
+const normalizeProvider = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+};
+
 const normalizeFailStatusCode = (value: unknown): number | undefined => {
   if (typeof value === 'number' && Number.isFinite(value)) return value;
   if (typeof value === 'string' && value.trim()) {
@@ -317,15 +324,18 @@ const normalizeFailBody = (value: unknown): string | undefined => {
 };
 
 /**
- * 提取请求明细中的服务层级与失败信息(service_tier / failure_status_code / failure_body)。
+ * 提取请求明细中的透传元信息(provider / service_tier / failure_status_code /
+ * failure_body)。provider 用于计费时区分输入口径（Claude 加法 vs 其它减法）。
  */
 const extractUsageStatusFields = (
   detail: Record<string, unknown>
-): Pick<UsageDetail, 'service_tier' | 'failure_status_code' | 'failure_body'> => {
+): Pick<UsageDetail, 'provider' | 'service_tier' | 'failure_status_code' | 'failure_body'> => {
+  const provider = normalizeProvider(detail.provider);
   const serviceTier = normalizeServiceTier(detail.service_tier ?? detail.serviceTier);
   const failStatusCode = normalizeFailStatusCode(detail.failure_status_code ?? detail.fail_status_code);
   const failBody = normalizeFailBody(detail.failure_body ?? detail.fail_body);
   return {
+    ...(provider ? { provider } : {}),
     ...(serviceTier ? { service_tier: serviceTier } : {}),
     ...(failStatusCode !== undefined ? { failure_status_code: failStatusCode } : {}),
     ...(failBody !== undefined ? { failure_body: failBody } : {}),
@@ -1181,7 +1191,7 @@ export function getModelNamesFromUsage(usageData: unknown): string[] {
 }
 
 /**
- * 依据输入上下文规模（input_tokens 总量）选择适用的价格档：
+ * 依据上下文总量（纯输入 + 缓存读取 + 缓存创建）选择适用的价格档：
  * 命中的最高阶梯（threshold < contextTokens）优先，否则用基础价。
  */
 export function resolvePriceForContext(
@@ -1222,12 +1232,26 @@ export function resolvePriceForContext(
 }
 
 /**
+ * 依据请求记录的 provider 字段判断是否为 Claude / Anthropic 供应商：其
+ * input_tokens 不包含缓存读取/创建 token，计费时缓存部分需在 input 之外相加，
+ * 而非从 input 中扣除。
+ */
+function isAnthropicProvider(provider: string | undefined): boolean {
+  const name = String(provider || '').toLowerCase();
+  return name.includes('claude') || name.includes('anthropic');
+}
+
+/**
  * 计算成本数据
  *
- * 后端把 input_tokens 报为输入总量（含缓存读取/缓存创建），因此纯输入 =
- * input_tokens − 缓存读取 − 缓存创建（下取 0）。缓存读取按 cachedTokens
- * （cached_tokens/cache_tokens 归一化值）计费，缓存创建按 cache_creation_tokens
- * 计费。价格档按 input_tokens 命中上下文阶梯，最后统一乘 Tier 倍率。
+ * 输入计费分两种口径：
+ * - Claude/Anthropic：input_tokens 不含缓存，纯输入 = input_tokens（加法）。
+ * - 其它 provider：input_tokens 为输入总量（含缓存读取/创建），纯输入 =
+ *   input_tokens − 缓存读取 − 缓存创建（下取 0，减法）。
+ *
+ * 缓存读取按 cachedTokens（cached_tokens/cache_tokens 归一化值）计费，缓存
+ * 创建按 cache_creation_tokens 计费。价格档按「纯输入 + 缓存读取 + 缓存创建」
+ * 命中上下文阶梯（非 Claude 恰好等于 input_tokens），最后统一乘 Tier 倍率。
  */
 export function calculateCost(
   detail: UsageDetail,
@@ -1257,10 +1281,16 @@ export function calculateCost(
   const cacheCreationTokens = Number.isFinite(rawCacheCreationTokens)
     ? Math.max(rawCacheCreationTokens, 0)
     : 0;
-  // input_tokens 为总量：扣除缓存读取与缓存创建后得到按输入价计费的纯输入。
-  const pureInputTokens = Math.max(inputTokens - cacheReadTokens - cacheCreationTokens, 0);
+  // input_tokens 计费口径依 provider 字段而定：Claude/Anthropic 不含缓存（加法，
+  // 纯输入 = input_tokens）；其它 provider 为总量，扣除缓存读取/创建得纯输入（减法）。
+  const pureInputTokens = isAnthropicProvider(detail.provider)
+    ? inputTokens
+    : Math.max(inputTokens - cacheReadTokens - cacheCreationTokens, 0);
 
-  const tierPrice = resolvePriceForContext(price, inputTokens);
+  // 上下文总量（命中 context 阶梯用）= 纯输入 + 缓存读取 + 缓存创建。
+  // 非 Claude 恰为 input_tokens（原行为不变），Claude 则含缓存。
+  const contextTokens = pureInputTokens + cacheReadTokens + cacheCreationTokens;
+  const tierPrice = resolvePriceForContext(price, contextTokens);
 
   const inputCost = (pureInputTokens / TOKENS_PER_PRICE_UNIT) * tierPrice.input;
   const cacheReadCost = (cacheReadTokens / TOKENS_PER_PRICE_UNIT) * tierPrice.cacheRead;
