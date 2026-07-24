@@ -899,9 +899,7 @@
           "timeout": "Timeout",
           "stabilize_device": "Стабилизировать профиль устройства",
           "stabilize_device_desc": "Фиксировать OS/Arch и стабилизировать программный отпечаток для учётных данных/API-ключа",
-          "beta_features": "Beta Features",
-          "codex_identity_confuse": "Codex identity-confuse",
-          "codex_identity_confuse_desc": "При fill-first routing или session affinity переопределяет Codex prompt_cache_key и installation identity под выбранную auth-запись"
+          "beta_features": "Beta Features"
         },
         "network": {
           "title": "Сетевые настройки",
@@ -1274,7 +1272,11 @@
   },
   "sidebar": {
     "toggle_expand": "Развернуть боковую панель",
-    "toggle_collapse": "Свернуть боковую панель"
+    "toggle_collapse": "Свернуть боковую панель",
+    "expand": "Развернуть",
+    "collapse": "Свернуть",
+    "subtitle": "Консоль управления CLI Proxy API",
+    "auth_files_count": "Файлов аутентификации: {{count}}"
   },
   "footer": {
     "api_version": "Версия CLI Proxy API",

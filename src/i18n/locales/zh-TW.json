@@ -938,9 +938,7 @@
           "timeout": "Timeout",
           "stabilize_device": "穩定設備指紋",
           "stabilize_device_desc": "固定 OS/Arch，並按憑證/API Key 穩定軟體指紋",
-          "beta_features": "Beta Features",
-          "codex_identity_confuse": "Codex 身分混淆",
-          "codex_identity_confuse_desc": "在 fill-first 或會話黏性路由下，按所選驗證重映射 Codex prompt_cache_key 與安裝身分"
+          "beta_features": "Beta Features"
         },
         "network": {
           "title": "網路設定",
@@ -1322,7 +1320,11 @@
   },
   "sidebar": {
     "toggle_expand": "展開側邊欄",
-    "toggle_collapse": "收起側邊欄"
+    "toggle_collapse": "收起側邊欄",
+    "expand": "展開",
+    "collapse": "收起",
+    "subtitle": "CLI Proxy API 管理控制台",
+    "auth_files_count": "驗證檔案：{{count}} 個"
   },
   "footer": {
     "api_version": "CLI Proxy API 版本",

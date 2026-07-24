@@ -21,10 +21,9 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { IconFilterAll, IconSearch } from '@/components/ui/icons';
+import { IconFilterAll, IconSearch, IconSlidersHorizontal } from '@/components/ui/icons';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ToggleSwitch } from '@/components/ui/ToggleSwitch';
-import { AuthFilesStatusFilterCard } from '@/features/authFiles/components/AuthFilesStatusFilterCard';
 import { copyToClipboard } from '@/utils/clipboard';
 import {
   MAX_CARD_PAGE_SIZE,
@@ -32,10 +31,12 @@ import {
   QUOTA_PROVIDER_TYPES,
   clampCardPageSize,
   getAuthFileIcon,
+  getThemeSurfaceIconBackground,
   getTypeColor,
   getTypeLabel,
   hasAuthFileStatusMessage,
   isRuntimeOnlyAuthFile,
+  isThemeSurfaceIconProvider,
   normalizeProviderKey,
   parsePriorityValue,
   type QuotaProviderType,
@@ -114,12 +115,14 @@ export function AuthFilesPage() {
   const [pageSizeInput, setPageSizeInput] = useState('9');
   const [viewMode, setViewMode] = useState<'diagram' | 'list'>('list');
   const [sortMode, setSortMode] = useState<AuthFilesSortMode>('default');
+  const [displaySettingsOpen, setDisplaySettingsOpen] = useState(false);
   const [batchActionBarVisible, setBatchActionBarVisible] = useState(false);
   const [uiStateHydrated, setUiStateHydrated] = useState(false);
   const floatingBatchActionsRef = useRef<HTMLDivElement>(null);
   const batchActionAnimationRef = useRef<AnimationPlaybackControlsWithThen | null>(null);
   const previousSelectionCountRef = useRef(0);
   const selectionCountRef = useRef(0);
+  const displaySettingsRef = useRef<HTMLDivElement>(null);
 
   const {
     files,
@@ -203,6 +206,28 @@ export function AuthFilesPage() {
   const problemOnly = statusFilterMode === 'problem';
   const disabledOnly = statusFilterMode === 'disabled';
   const enabledOnly = statusFilterMode === 'enabled';
+
+  useEffect(() => {
+    if (!displaySettingsOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!displaySettingsRef.current?.contains(event.target as Node)) {
+        setDisplaySettingsOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setDisplaySettingsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [displaySettingsOpen]);
 
   useEffect(() => {
     const persistedCompactMode = readPersistedAuthFilesCompactMode();
@@ -635,7 +660,18 @@ export function AuthFilesPage() {
                     <IconFilterAll className={styles.filterAllIcon} size={16} />
                   </span>
                 ) : (
-                  <span className={styles.filterTagIconWrap}>
+                  <span
+                    className={styles.filterTagIconWrap}
+                    style={
+                      // 与 AI 提供商界面一致：Kimi 图标底座随主题切换颜色
+                      isThemeSurfaceIconProvider(type)
+                        ? {
+                            background: getThemeSurfaceIconBackground(resolvedTheme),
+                            borderColor: 'transparent',
+                          }
+                        : undefined
+                    }
+                  >
                     {iconSrc ? (
                       <img src={iconSrc} alt="" className={styles.filterTagIcon} />
                     ) : (
@@ -736,26 +772,73 @@ export function AuthFilesPage() {
         <div className={styles.filterSection}>
           {renderFilterTags()}
 
-          <div className={styles.filterContent}>
-            <div className={styles.filterControlsPanel}>
-              <div className={styles.filterControls}>
-                <div className={`${styles.filterItem} ${styles.filterSearchItem}`}>
-                  <label>{t('auth_files.search_label')}</label>
-                  <Input
-                    className={styles.searchInput}
-                    value={search}
-                    onChange={(e) => {
-                      setSearch(e.target.value);
-                      setPage(1);
-                    }}
-                    placeholder={t('auth_files.search_placeholder')}
-                    rightElement={<IconSearch className={styles.searchIcon} size={18} />}
-                  />
-                </div>
-                <div className={styles.filterOptionsCard}>
-                  <div className={styles.filterOptionsControl}>
-                    <label>{t('auth_files.page_size_label')}</label>
+          <div className={styles.filterToolbar}>
+            <div className={styles.toolbarSearch}>
+              <Input
+                className={styles.searchInput}
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                placeholder={t('auth_files.search_placeholder')}
+                aria-label={t('auth_files.search_label')}
+                rightElement={<IconSearch className={styles.searchIcon} size={18} />}
+              />
+            </div>
+
+            <div
+              className={styles.statusFilterGroup}
+              role="group"
+              aria-label={t('auth_files.problem_filter_label')}
+            >
+              {statusFilterOptions.map((option) => {
+                const isActive = statusFilterMode === option.value;
+                const isProblem = option.value === 'problem';
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`${styles.statusFilterButton} ${isActive ? styles.statusFilterButtonActive : ''} ${isProblem ? styles.statusFilterButtonProblem : ''}`}
+                    aria-pressed={isActive}
+                    onClick={() => handleStatusFilterModeChange(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className={styles.sortControl}>
+              <span className={styles.toolbarControlLabel}>{t('auth_files.sort_label')}</span>
+              <Select
+                className={styles.sortSelect}
+                value={sortMode}
+                options={sortOptions}
+                onChange={handleSortModeChange}
+                ariaLabel={t('auth_files.sort_label')}
+                fullWidth
+              />
+            </div>
+
+            <div className={styles.displaySettings} ref={displaySettingsRef}>
+              <button
+                type="button"
+                className={`${styles.displaySettingsButton} ${displaySettingsOpen ? styles.displaySettingsButtonActive : ''}`}
+                aria-expanded={displaySettingsOpen}
+                aria-controls="auth-files-display-settings"
+                onClick={() => setDisplaySettingsOpen((open) => !open)}
+              >
+                <IconSlidersHorizontal size={17} />
+                <span>{t('auth_files.display_options_label')}</span>
+              </button>
+
+              {displaySettingsOpen && (
+                <div id="auth-files-display-settings" className={styles.displaySettingsPopover}>
+                  <div className={styles.displaySettingsRow}>
+                    <label htmlFor="auth-files-page-size">{t('auth_files.page_size_label')}</label>
                     <input
+                      id="auth-files-page-size"
                       className={styles.pageSizeSelect}
                       type="number"
                       min={MIN_CARD_PAGE_SIZE}
@@ -771,108 +854,80 @@ export function AuthFilesPage() {
                       }}
                     />
                   </div>
-                  <div className={styles.filterOptionsControl}>
-                    <label>{t('auth_files.sort_label')}</label>
-                    <Select
-                      className={styles.sortSelect}
-                      value={sortMode}
-                      options={sortOptions}
-                      onChange={handleSortModeChange}
-                      ariaLabel={t('auth_files.sort_label')}
-                      fullWidth
-                    />
-                  </div>
-                  <div className={styles.filterOptionsToggle}>
+                  <div className={styles.displaySettingsRow}>
+                    <span>{t('auth_files.compact_mode_label')}</span>
                     <ToggleSwitch
                       checked={compactMode}
                       onChange={(value) => setCompactMode(value)}
                       ariaLabel={t('auth_files.compact_mode_label')}
-                      label={
-                        <span className={styles.filterToggleLabel}>
-                          {t('auth_files.compact_mode_label')}
-                        </span>
-                      }
                     />
                   </div>
                 </div>
-                <div className={`${styles.filterItem} ${styles.filterToggleItem}`}>
-                  <label>{t('auth_files.display_options_label')}</label>
-                  <AuthFilesStatusFilterCard
-                    label={t('auth_files.problem_filter_label')}
-                    minLabel={statusFilterOptions[0]?.label}
-                    maxLabel={statusFilterOptions[statusFilterOptions.length - 1]?.label}
-                    value={statusFilterMode}
-                    options={statusFilterOptions}
-                    onChange={(next) =>
-                      handleStatusFilterModeChange(next as AuthFilesStatusFilterMode)
-                    }
-                  />
-                </div>
-              </div>
+              )}
             </div>
-
-            {loading ? (
-              <div className={styles.hint}>{t('common.loading')}</div>
-            ) : pageItems.length === 0 ? (
-              <EmptyState
-                title={t('auth_files.search_empty_title')}
-                description={t('auth_files.search_empty_desc')}
-              />
-            ) : (
-              <div
-                className={`${styles.fileGrid} ${quotaFilterType ? styles.fileGridQuotaManaged : ''} ${compactMode ? styles.fileGridCompact : ''}`}
-              >
-                {pageItems.map((file) => (
-                  <AuthFileCard
-                    key={file.name}
-                    file={file}
-                    compact={compactMode}
-                    selected={selectedFiles.has(file.name)}
-                    resolvedTheme={resolvedTheme}
-                    disableControls={disableControls}
-                    deleting={deleting}
-                    statusUpdating={statusUpdating}
-                    quotaFilterType={quotaFilterType}
-                    statusBarCache={statusBarCache}
-                    onShowModels={showModels}
-                    onDownload={handleDownload}
-                    onOpenPrefixProxyEditor={openPrefixProxyEditor}
-                    onDelete={handleDelete}
-                    onToggleStatus={handleStatusToggle}
-                    onToggleSelect={toggleSelect}
-                  />
-                ))}
-              </div>
-            )}
-
-            {!loading && sorted.length > pageSize && (
-              <div className={styles.pagination}>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage <= 1}
-                >
-                  {t('auth_files.pagination_prev')}
-                </Button>
-                <div className={styles.pageInfo}>
-                  {t('auth_files.pagination_info', {
-                    current: currentPage,
-                    total: totalPages,
-                    count: sorted.length,
-                  })}
-                </div>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage >= totalPages}
-                >
-                  {t('auth_files.pagination_next')}
-                </Button>
-              </div>
-            )}
           </div>
+
+          {loading ? (
+            <div className={styles.hint}>{t('common.loading')}</div>
+          ) : pageItems.length === 0 ? (
+            <EmptyState
+              title={t('auth_files.search_empty_title')}
+              description={t('auth_files.search_empty_desc')}
+            />
+          ) : (
+            <div
+              className={`${styles.fileGrid} ${quotaFilterType ? styles.fileGridQuotaManaged : ''} ${compactMode ? styles.fileGridCompact : ''}`}
+            >
+              {pageItems.map((file) => (
+                <AuthFileCard
+                  key={file.name}
+                  file={file}
+                  compact={compactMode}
+                  selected={selectedFiles.has(file.name)}
+                  resolvedTheme={resolvedTheme}
+                  disableControls={disableControls}
+                  deleting={deleting}
+                  statusUpdating={statusUpdating}
+                  quotaFilterType={quotaFilterType}
+                  statusBarCache={statusBarCache}
+                  onShowModels={showModels}
+                  onDownload={handleDownload}
+                  onOpenPrefixProxyEditor={openPrefixProxyEditor}
+                  onDelete={handleDelete}
+                  onToggleStatus={handleStatusToggle}
+                  onToggleSelect={toggleSelect}
+                />
+              ))}
+            </div>
+          )}
+
+          {!loading && sorted.length > pageSize && (
+            <div className={styles.pagination}>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage <= 1}
+              >
+                {t('auth_files.pagination_prev')}
+              </Button>
+              <div className={styles.pageInfo}>
+                {t('auth_files.pagination_info', {
+                  current: currentPage,
+                  total: totalPages,
+                  count: sorted.length,
+                })}
+              </div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage >= totalPages}
+              >
+                {t('auth_files.pagination_next')}
+              </Button>
+            </div>
+          )}
         </div>
       </Card>
 
