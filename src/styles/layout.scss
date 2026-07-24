@@ -451,8 +451,8 @@
       padding: 0 4px;
       border-radius: $radius-full;
       font-size: 9px;
-      color: #fff;
-      background: var(--error-color);
+      color: var(--bg-primary);
+      background: var(--text-primary);
       box-shadow: 0 0 0 2px var(--bg-primary);
     }
 
@@ -527,7 +527,7 @@
     overflow: hidden;
     font-size: 10.5px;
     font-weight: 500;
-    color: color-mix(in srgb, var(--text-primary) 46%, transparent);
+    color: var(--text-secondary);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -669,7 +669,7 @@
       flex-shrink: 0;
       border-radius: $radius-full;
       background: color-mix(in srgb, var(--text-primary) 9%, transparent);
-      color: color-mix(in srgb, var(--text-primary) 58%, transparent);
+      color: var(--text-primary);
       font-size: 10.5px;
       font-weight: 700;
       line-height: 1;
@@ -968,7 +968,7 @@
         margin-left: auto;
         padding: 0 5px;
         font-size: 10.5px;
-        color: color-mix(in srgb, var(--text-primary) 58%, transparent);
+        color: var(--text-primary);
         background: color-mix(in srgb, var(--text-primary) 9%, transparent);
         box-shadow: none;
       }
