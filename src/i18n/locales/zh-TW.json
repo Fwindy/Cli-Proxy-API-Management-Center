@@ -938,9 +938,7 @@
           "timeout": "Timeout",
           "stabilize_device": "穩定設備指紋",
           "stabilize_device_desc": "固定 OS/Arch，並按憑證/API Key 穩定軟體指紋",
-          "beta_features": "Beta Features",
-          "codex_identity_confuse": "Codex 身分混淆",
-          "codex_identity_confuse_desc": "在 fill-first 或會話黏性路由下，按所選驗證重映射 Codex prompt_cache_key 與安裝身分"
+          "beta_features": "Beta Features"
         },
         "network": {
           "title": "網路設定",

@@ -912,9 +912,7 @@
           "timeout": "Timeout",
           "stabilize_device": "稳定设备指纹",
           "stabilize_device_desc": "固定 OS/Arch，并按凭据/API Key 稳定软件指纹",
-          "beta_features": "Beta Features",
-          "codex_identity_confuse": "Codex 身份混淆",
-          "codex_identity_confuse_desc": "在 fill-first 或会话粘性路由下，按所选认证重映射 Codex prompt_cache_key 与安装身份"
+          "beta_features": "Beta Features"
         },
         "network": {
           "title": "网络配置",
