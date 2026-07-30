@@ -1236,9 +1236,42 @@ export function resolvePriceForContext(
  * input_tokens 不包含缓存读取/创建 token，计费时缓存部分需在 input 之外相加，
  * 而非从 input 中扣除。
  */
-function isAnthropicProvider(provider: string | undefined): boolean {
+export function isAnthropicProvider(provider: string | undefined): boolean {
   const name = String(provider || '').toLowerCase();
   return name.includes('claude') || name.includes('anthropic');
+}
+
+/**
+ * 计算单次请求的缓存命中率，口径与 calculateCost 保持一致。
+ *
+ * 分母是「上下文总量」= 纯输入 + 缓存读取 + 缓存创建，而非 input_tokens：
+ * - Claude/Anthropic：input_tokens 不含缓存，纯输入 = input_tokens（加法）。
+ *   直接用 cacheRead / input_tokens 会把分母缩小到仅剩未命中的增量部分，
+ *   长会话续轮时可算出数百万百分比。
+ * - 其它 provider：input_tokens 为输入总量，纯输入 = input_tokens − 缓存
+ *   读取 − 缓存创建（下取 0），相加后分母仍等于 input_tokens（行为不变）。
+ *
+ * 上下文总量为 0 时返回 null（调用方显示为 '--'）。
+ */
+export function calculateCacheHitRatio(params: {
+  provider?: string;
+  inputTokens: number;
+  cacheReadTokens: number;
+  cacheCreationTokens: number;
+}): number | null {
+  const inputTokens = Math.max(params.inputTokens, 0);
+  const cacheReadTokens = Math.max(params.cacheReadTokens, 0);
+  const cacheCreationTokens = Math.max(params.cacheCreationTokens, 0);
+
+  const pureInputTokens = isAnthropicProvider(params.provider)
+    ? inputTokens
+    : Math.max(inputTokens - cacheReadTokens - cacheCreationTokens, 0);
+  const contextTokens = pureInputTokens + cacheReadTokens + cacheCreationTokens;
+
+  if (contextTokens <= 0) {
+    return null;
+  }
+  return cacheReadTokens / contextTokens;
 }
 
 /**

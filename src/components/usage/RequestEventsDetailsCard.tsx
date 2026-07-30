@@ -18,6 +18,7 @@ import type { CredentialInfo } from '@/types/sourceInfo';
 import { buildSourceInfoMap, resolveSourceDisplay } from '@/utils/sourceResolver';
 import { parseTimestampMs } from '@/utils/timestamp';
 import {
+  calculateCacheHitRatio,
   collectUsageDetails,
   extractFirstByteLatencyMs,
   extractGenerationMs,
@@ -373,7 +374,12 @@ export function RequestEventsDetailsCard({
       const thinking = detail.thinking ?? null;
       const thinkingEffort = normalizeThinkingText(detail.reasoning_effort);
       const thinkingLabel = thinkingEffort || formatThinkingLabel(thinking);
-      const cacheHitRatio = inputTokens > 0 ? cachedTokens / inputTokens : null;
+      const cacheHitRatio = calculateCacheHitRatio({
+        provider: detail.provider,
+        inputTokens,
+        cacheReadTokens: cachedTokens,
+        cacheCreationTokens,
+      });
       const serviceTier = normalizeThinkingText(detail.service_tier);
       const failStatusCode =
         typeof detail.failure_status_code === 'number' && Number.isFinite(detail.failure_status_code)
