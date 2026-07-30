@@ -1141,6 +1141,12 @@ export function VisualConfigEditor({
                             ),
                           },
                           {
+                            value: 'weighted-round-robin',
+                            label: t(
+                              'config_management.visual.sections.network.strategy_weighted_round_robin'
+                            ),
+                          },
+                          {
                             value: 'fill-first',
                             label: t(
                               'config_management.visual.sections.network.strategy_fill_first'
@@ -1711,21 +1717,6 @@ export function VisualConfigEditor({
                           value={values.codexHeaderBetaFeatures}
                           onChange={(e) => onChange({ codexHeaderBetaFeatures: e.target.value })}
                           disabled={disabled}
-                        />
-                      </FieldAnchor>
-                    </SectionGrid>
-                    <SectionGrid>
-                      <FieldAnchor fieldId="codexIdentityConfuse">
-                        <ToggleRow
-                          title={t(
-                            'config_management.visual.sections.headers.codex_identity_confuse'
-                          )}
-                          description={t(
-                            'config_management.visual.sections.headers.codex_identity_confuse_desc'
-                          )}
-                          checked={values.codexIdentityConfuse}
-                          disabled={disabled}
-                          onChange={(codexIdentityConfuse) => onChange({ codexIdentityConfuse })}
                         />
                       </FieldAnchor>
                     </SectionGrid>

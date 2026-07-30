@@ -10,6 +10,7 @@ import type {
   PayloadParamEntry,
   PayloadParamValueType,
   PayloadRule,
+  RoutingStrategy,
   VisualConfigValues,
   VisualConfigValidationErrors,
   PayloadParamValidationErrorCode,
@@ -430,6 +431,17 @@ function parseRawPayloadParamValue(raw: unknown): string {
 function parsePayloadProtocol(raw: unknown): string | undefined {
   if (typeof raw !== 'string') return undefined;
   return raw.trim() ? raw : undefined;
+}
+
+export function parseRoutingStrategy(raw: unknown): RoutingStrategy {
+  const normalized = String(raw ?? '')
+    .trim()
+    .toLowerCase();
+  if (['weighted-round-robin', 'weightedroundrobin', 'wrr'].includes(normalized)) {
+    return 'weighted-round-robin';
+  }
+  if (['fill-first', 'fillfirst', 'ff'].includes(normalized)) return 'fill-first';
+  return 'round-robin';
 }
 
 export function parseDisableImageGenerationMode(raw: unknown): DisableImageGenerationMode {
@@ -879,7 +891,6 @@ function getNextDirtyFields(
       'claudeHeaderStabilizeDeviceProfile',
       'codexHeaderUserAgent',
       'codexHeaderBetaFeatures',
-      'codexIdentityConfuse',
       'host',
       'port',
       'tlsEnable',
@@ -1061,7 +1072,6 @@ export function useVisualConfig() {
       const payload = asRecord(parsed.payload);
       const streaming = asRecord(parsed.streaming);
       const plugins = asRecord(parsed.plugins);
-      const codex = asRecord(parsed.codex);
       const claudeHeaderDefaults = asRecord(parsed['claude-header-defaults']);
       const codexHeaderDefaults = asRecord(parsed['codex-header-defaults']);
 
@@ -1150,13 +1160,12 @@ export function useVisualConfig() {
           typeof codexHeaderDefaults?.['beta-features'] === 'string'
             ? codexHeaderDefaults['beta-features']
             : '',
-        codexIdentityConfuse: Boolean(codex?.['identity-confuse']),
 
         quotaSwitchProject: Boolean(quotaExceeded?.['switch-project'] ?? true),
         quotaSwitchPreviewModel: Boolean(quotaExceeded?.['switch-preview-model'] ?? true),
         quotaAntigravityCredits: Boolean(quotaExceeded?.['antigravity-credits'] ?? false),
 
-        routingStrategy: routing?.strategy === 'fill-first' ? 'fill-first' : 'round-robin',
+        routingStrategy: parseRoutingStrategy(routing?.strategy),
         routingSessionAffinity: Boolean(
           routing?.['session-affinity'] ?? routing?.sessionAffinity ?? routing?.['sessionAffinity']
         ),
@@ -1440,12 +1449,6 @@ export function useVisualConfig() {
             );
           }
           deleteIfMapEmpty(doc, ['codex-header-defaults']);
-        }
-
-        if (dirtyFields.has('codexIdentityConfuse')) {
-          ensureMapInDoc(doc, ['codex']);
-          setBooleanInDoc(doc, ['codex', 'identity-confuse'], values.codexIdentityConfuse);
-          deleteIfMapEmpty(doc, ['codex']);
         }
 
         const quotaDirty =

@@ -8,18 +8,27 @@ import {
   KIMI_CONFIG,
   XAI_CONFIG,
 } from '@/components/quota';
-import { useNotificationStore, useQuotaStore } from '@/stores';
-import type { AuthFileItem } from '@/types';
-import { getStatusFromError } from '@/utils/quota';
 import {
-  isRuntimeOnlyAuthFile,
-  resolveQuotaErrorMessage,
-  type QuotaProviderType,
-} from '@/features/authFiles/constants';
+  captureQuotaCacheGeneration,
+  commitIfQuotaCacheCurrent,
+  useNotificationStore,
+  useQuotaStore,
+} from '@/stores';
+import type { AuthFileItem } from '@/types';
+import { getStatusFromError, resolveQuotaErrorMessage } from '@/utils/quota';
+import { isRuntimeOnlyAuthFile, type QuotaProviderType } from '@/features/authFiles/constants';
 import { Button } from '@/components/ui/Button';
 import { IconRefreshCw } from '@/components/ui/icons';
-import { QuotaProgressBar } from '@/features/authFiles/components/QuotaProgressBar';
-import styles from '@/pages/AuthFilesPage.module.scss';
+import {
+  QuotaProgressBar,
+  type QuotaProgressBarProps,
+} from '@/components/quota/QuotaProgressBar';
+import styles from './AuthFileQuota.module.scss';
+
+/** 认证文件卡片外衣的进度条：绑定本页样式，满足 quotaConfigs 的 helpers 契约。 */
+const BoundQuotaProgressBar = (props: QuotaProgressBarProps) => (
+  <QuotaProgressBar {...props} styles={styles} />
+);
 
 type QuotaState = { status?: string; error?: string; errorStatus?: number } | undefined;
 
@@ -83,6 +92,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
       buildErrorState: (message: string, status?: number) => unknown;
       renderQuotaItems: (quota: unknown, t: TFunction, helpers: unknown) => unknown;
     };
+    const cacheGeneration = captureQuotaCacheGeneration();
 
     updateQuotaState((prev: Record<string, unknown>) => ({
       ...prev,
@@ -91,19 +101,26 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
 
     try {
       const data = await config.fetchQuota(file, t);
-      updateQuotaState((prev: Record<string, unknown>) => ({
-        ...prev,
-        [file.name]: config.buildSuccessState(data),
-      }));
-      showNotification(t('auth_files.quota_refresh_success', { name: file.name }), 'success');
+      commitIfQuotaCacheCurrent(cacheGeneration, () => {
+        updateQuotaState((prev: Record<string, unknown>) => ({
+          ...prev,
+          [file.name]: config.buildSuccessState(data),
+        }));
+        showNotification(t('auth_files.quota_refresh_success', { name: file.name }), 'success');
+      });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : t('common.unknown_error');
       const status = getStatusFromError(err);
-      updateQuotaState((prev: Record<string, unknown>) => ({
-        ...prev,
-        [file.name]: config.buildErrorState(message, status),
-      }));
-      showNotification(t('auth_files.quota_refresh_failed', { name: file.name, message }), 'error');
+      commitIfQuotaCacheCurrent(cacheGeneration, () => {
+        updateQuotaState((prev: Record<string, unknown>) => ({
+          ...prev,
+          [file.name]: config.buildErrorState(message, status),
+        }));
+        showNotification(
+          t('auth_files.quota_refresh_failed', { name: file.name, message }),
+          'error'
+        );
+      });
     }
   }, [disableControls, file, quota?.status, quotaType, showNotification, t, updateQuotaState]);
 
@@ -127,17 +144,22 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
       confirmText: t('codex_quota.reset_confirm_button'),
       variant: 'primary',
       onConfirm: async () => {
+        const cacheGeneration = captureQuotaCacheGeneration();
         setResettingQuota(true);
         try {
           const data = await resetQuota(file, t);
-          updateQuotaState((prev: Record<string, unknown>) => ({
-            ...prev,
-            [file.name]: config.buildSuccessState(data),
-          }));
-          showNotification(t('codex_quota.reset_success', { name: file.name }), 'success');
+          commitIfQuotaCacheCurrent(cacheGeneration, () => {
+            updateQuotaState((prev: Record<string, unknown>) => ({
+              ...prev,
+              [file.name]: config.buildSuccessState(data),
+            }));
+            showNotification(t('codex_quota.reset_success', { name: file.name }), 'success');
+          });
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : t('common.unknown_error');
-          showNotification(t('codex_quota.reset_failed', { name: file.name, message }), 'error');
+          commitIfQuotaCacheCurrent(cacheGeneration, () => {
+            showNotification(t('codex_quota.reset_failed', { name: file.name, message }), 'error');
+          });
         } finally {
           setResettingQuota(false);
         }
@@ -211,7 +233,7 @@ export function AuthFileQuotaSection(props: AuthFileQuotaSectionProps) {
       ) : quota ? (
         (config.renderQuotaItems(quota, t, {
           styles,
-          QuotaProgressBar,
+          QuotaProgressBar: BoundQuotaProgressBar,
         }) as ReactNode)
       ) : (
         <div className={styles.quotaMessage}>{t(`${config.i18nPrefix}.idle`)}</div>

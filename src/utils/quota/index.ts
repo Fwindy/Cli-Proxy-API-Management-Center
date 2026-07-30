@@ -3,9 +3,11 @@
  */
 
 export * from './constants';
+export * from './errors';
 export * from './parsers';
 export * from './resolvers';
 export * from './formatters';
 export * from './validators';
 export * from './builders';
 export * from './resetCredits';
+export * from './xaiPaid';

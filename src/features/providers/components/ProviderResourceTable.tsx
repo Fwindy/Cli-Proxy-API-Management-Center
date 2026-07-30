@@ -22,6 +22,7 @@ import {
   getOpenAIProviderTotalStats,
   getProviderRecentStatusData,
   getProviderTotalStats,
+  getProviderUsageKey,
   type ProviderRecentUsageMap,
 } from '@/components/providers/utils';
 import type { OpenAIProviderConfig } from '@/types';
@@ -47,9 +48,6 @@ const columnWidths = ['180px', '220px', '72px', '138px', '174px', '176px'];
 const isSponsorResource = (resource: ProviderResource): boolean =>
   isMultiProtocolSponsorBrand(resource.brand);
 
-const getUsageProvider = (resource: ProviderResource): string =>
-  resource.brand === 'claudeApi' ? 'claude' : resource.brand;
-
 const resolveStatusBarData = (
   resource: ProviderResource,
   usageByProvider: ProviderRecentUsageMap
@@ -59,7 +57,7 @@ const resolveStatusBarData = (
   }
   return getProviderRecentStatusData(
     usageByProvider,
-    getUsageProvider(resource),
+    getProviderUsageKey(resource.brand),
     resource.apiKey ?? undefined,
     resource.baseUrl ?? undefined
   );
@@ -74,7 +72,7 @@ const resolveTotalStats = (
   }
   return getProviderTotalStats(
     usageByProvider,
-    getUsageProvider(resource),
+    getProviderUsageKey(resource.brand),
     resource.apiKey ?? undefined,
     resource.baseUrl ?? undefined
   );
@@ -129,7 +127,7 @@ export function ProviderResourceTable({
         renderMetric('models', t('providersPage.table.metrics.models'), r.modelCount),
         renderMetric('headers', t('providersPage.table.metrics.headers'), r.headerCount)
       );
-      if (r.brand === 'codex' && r.flags.websockets) {
+      if ((r.brand === 'codex' || r.brand === 'xai') && r.flags.websockets) {
         items.push(renderFlagTag('ws', t('providersPage.table.websocketsTag')));
       }
       if (r.brand === 'claude' && r.flags.cloakEnabled) {

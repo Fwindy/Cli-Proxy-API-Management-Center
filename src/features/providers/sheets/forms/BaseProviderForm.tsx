@@ -29,6 +29,7 @@ import { ApiKeyEntriesEditor } from './ApiKeyEntriesEditor';
 import { ModelEntriesEditor } from './ModelEntriesEditor';
 import styles from './sharedForm.module.scss';
 import { CLAUDE_API_BASE_URL } from '../../claudeApi';
+import { MAX_CREDENTIAL_WEIGHT } from '@/utils/credentialWeight';
 
 interface BaseProviderFormProps {
   brand: ProviderBrand;
@@ -45,7 +46,9 @@ const emptyModel = (): ModelEntryInput => ({ name: '', alias: '' });
 const emptyApiKeyEntry = (): ApiKeyEntryInput => ({
   apiKey: '',
   proxyUrl: '',
+  weight: undefined,
 });
+const XAI_API_BASE_URL = 'https://api.x.ai/v1';
 
 const stripDisableAllRule = (list?: string[]): string[] =>
   (list ?? []).filter((s) => s.trim() !== '*');
@@ -67,16 +70,18 @@ function buildInitialForm(
     return {
       apiKey: '',
       name: '',
-      baseUrl: brand === 'claudeApi' ? CLAUDE_API_BASE_URL : '',
+      baseUrl:
+        brand === 'claudeApi' ? CLAUDE_API_BASE_URL : brand === 'xai' ? XAI_API_BASE_URL : '',
       proxyUrl: '',
       prefix: '',
       disabled: false,
       disableCooling: false,
       priority: undefined,
+      weight: undefined,
       models: [emptyModel()],
       headers: [emptyHeader()],
       excludedModelsText: '',
-      websockets: brand === 'codex' ? false : undefined,
+      websockets: brand === 'codex' || brand === 'xai' ? false : undefined,
       cloak: isClaudeLikeBrand(brand)
         ? { mode: '', strictMode: false, sensitiveWordsText: '', cacheUserId: false }
         : undefined,
@@ -84,8 +89,10 @@ function buildInitialForm(
       testModel:
         brand === 'openaiCompatibility' ||
         brand === 'codex' ||
+        brand === 'xai' ||
         isClaudeLikeBrand(brand) ||
-        brand === 'gemini'
+        brand === 'gemini' ||
+        brand === 'interactions'
           ? ''
           : undefined,
       apiKeyEntries: brand === 'openaiCompatibility' ? [emptyApiKeyEntry()] : undefined,
@@ -124,6 +131,7 @@ function buildInitialForm(
             apiKey: '',
             existingApiKey: entry.apiKey,
             proxyUrl: entry.proxyUrl ?? '',
+            weight: entry.weight,
             authIndex: entry.authIndex,
           }))
         : [emptyApiKeyEntry()],
@@ -146,6 +154,7 @@ function buildInitialForm(
     disabled,
     disableCooling: cfg.disableCooling === true,
     priority: cfg.priority,
+    weight: cfg.weight,
     models: cfg.models?.length
       ? cfg.models.map((m) => ({
           name: m.name,
@@ -158,7 +167,10 @@ function buildInitialForm(
       ? Object.entries(cfg.headers).map(([k, v]) => ({ key: k, value: String(v) }))
       : [emptyHeader()],
     excludedModelsText: excludedList.join('\n'),
-    websockets: brand === 'codex' ? (cfg as ProviderKeyConfig).websockets === true : undefined,
+    websockets:
+      brand === 'codex' || brand === 'xai'
+        ? (cfg as ProviderKeyConfig).websockets === true
+        : undefined,
     cloak: isClaudeLikeBrand(brand)
       ? {
           mode: (cfg as ProviderKeyConfig).cloak?.mode ?? '',
@@ -170,7 +182,14 @@ function buildInitialForm(
     experimentalCchSigning: isClaudeLikeBrand(brand)
       ? (cfg as ProviderKeyConfig).experimentalCchSigning === true
       : undefined,
-    testModel: brand === 'codex' || isClaudeLikeBrand(brand) || brand === 'gemini' ? '' : undefined,
+    testModel:
+      brand === 'codex' ||
+      brand === 'xai' ||
+      isClaudeLikeBrand(brand) ||
+      brand === 'gemini' ||
+      brand === 'interactions'
+        ? ''
+        : undefined,
   };
 }
 
@@ -366,6 +385,18 @@ export function BaseProviderForm({
     if (descriptor.baseUrlRequired && !form.baseUrl.trim()) {
       return t('providersPage.form.validation.baseUrlRequired');
     }
+    const weights = [
+      ...(brand === 'openaiCompatibility'
+        ? (form.apiKeyEntries ?? []).map((entry) => entry.weight)
+        : []),
+      ...(brand !== 'openaiCompatibility' ? [form.weight] : []),
+    ];
+    if (weights.some((weight) => weight !== undefined && !Number.isSafeInteger(weight))) {
+      return t('providersPage.form.validation.weightInteger');
+    }
+    if (weights.some((weight) => weight !== undefined && weight > MAX_CREDENTIAL_WEIGHT)) {
+      return t('providersPage.form.validation.weightMax', { max: MAX_CREDENTIAL_WEIGHT });
+    }
     return null;
   };
 
@@ -402,14 +433,16 @@ export function BaseProviderForm({
   const actualApiKeyEntries = form.apiKeyEntries ?? [];
   const supportsDisableCooling =
     brand === 'gemini' ||
+    brand === 'interactions' ||
     brand === 'codex' ||
+    brand === 'xai' ||
     isClaudeLikeBrand(brand) ||
     brand === 'openaiCompatibility';
   const supportsOpenAIModelOptions = brand === 'openaiCompatibility';
   const singleConnectivity =
-    brand === 'codex'
+    brand === 'codex' || brand === 'xai'
       ? { status: connectivity.codexStatus, run: connectivity.runCodex }
-      : brand === 'gemini'
+      : brand === 'gemini' || brand === 'interactions'
         ? { status: connectivity.geminiStatus, run: connectivity.runGemini }
         : isClaudeLikeBrand(brand)
           ? { status: connectivity.claudeStatus, run: connectivity.runClaude }
@@ -568,11 +601,37 @@ export function BaseProviderForm({
           </div>
         ) : null}
 
+        {brand !== 'openaiCompatibility' ? (
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor={`${fid}-weight`}>
+              {t('providersPage.form.weight')}
+            </label>
+            <input
+              id={`${fid}-weight`}
+              type="number"
+              step="1"
+              max={MAX_CREDENTIAL_WEIGHT}
+              className={styles.input}
+              value={form.weight ?? ''}
+              placeholder="1"
+              onChange={(e) =>
+                updateField('weight', e.target.value === '' ? undefined : Number(e.target.value))
+              }
+              disabled={mutating}
+            />
+            <span className={styles.labelHint}>{t('providersPage.form.weightHint')}</span>
+          </div>
+        ) : null}
+
         {descriptor.supportsTestModel ? (
           <div className={styles.field}>
             <label className={styles.label} htmlFor={`${fid}-testModel`}>
               {t('providersPage.form.testModel')}
-              {brand === 'codex' || isClaudeLikeBrand(brand) || brand === 'gemini' ? (
+              {brand === 'codex' ||
+              brand === 'xai' ||
+              isClaudeLikeBrand(brand) ||
+              brand === 'gemini' ||
+              brand === 'interactions' ? (
                 <span className={styles.labelHint}>
                   {' '}
                   · {t('providersPage.form.testModelClaudeHint')}

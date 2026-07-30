@@ -47,8 +47,12 @@ import {
   CODEX_REQUEST_HEADERS,
   KIMI_USAGE_URL,
   KIMI_REQUEST_HEADERS,
+  XAI_API_CHAT_URL,
+  XAI_API_ME_URL,
+  XAI_API_REQUEST_HEADERS,
   XAI_BILLING_MONTHLY_URL,
   XAI_BILLING_WEEKLY_URL,
+  XAI_PAID_HEALTH_MODEL,
   XAI_REQUEST_HEADERS,
   normalizeNumberValue,
   normalizePlanType,
@@ -68,6 +72,7 @@ import {
   buildAntigravityQuotaGroups,
   buildKimiQuotaRows,
   buildXaiBillingSummary,
+  buildXaiPaidHealthSummary,
   mergeXaiBillingSummaries,
   createStatusError,
   formatShanghaiDateTime,
@@ -77,6 +82,7 @@ import {
   isCodexFile,
   isDisabledAuthFile,
   isKimiFile,
+  isPaidXaiAuthFile,
   isXaiFile,
 } from '@/utils/quota';
 import { normalizeAuthIndex } from '@/utils/authIndex';
@@ -96,6 +102,7 @@ type AntigravityQuotaData = {
 
 type CodexResetCreditsData = {
   availableCount: number | null;
+  applicableAvailableCount: number | null;
   credits: CodexRateLimitResetCredit[];
   error: string;
 };
@@ -104,6 +111,7 @@ type CodexQuotaData = {
   planType: string | null;
   subscriptionActiveUntil: string | number | null;
   rateLimitResetCreditsAvailableCount: number | null;
+  rateLimitResetCreditsApplicableAvailableCount: number | null;
   rateLimitResetCredits: CodexRateLimitResetCredit[];
   rateLimitResetCreditsError: string;
   windows: CodexQuotaWindow[];
@@ -112,6 +120,7 @@ type CodexQuotaData = {
 const QUOTA_PROGRESS_HIGH_THRESHOLD = 70;
 const QUOTA_PROGRESS_MEDIUM_THRESHOLD = 30;
 const CODEX_RESET_CREDITS_REQUEST_TIMEOUT_MS = 8000;
+const XAI_PAID_HEALTH_REQUEST_TIMEOUT_MS = 15000;
 
 export interface QuotaStore {
   antigravityQuota: Record<string, AntigravityQuotaState>;
@@ -305,7 +314,10 @@ const toAntigravityQuotaSubscription = (
   };
 };
 
-const buildCodexQuotaWindows = (payload: CodexUsagePayload, t: TFunction): CodexQuotaWindow[] => {
+export const buildCodexQuotaWindows = (
+  payload: CodexUsagePayload,
+  t: TFunction
+): CodexQuotaWindow[] => {
   const FIVE_HOUR_SECONDS = 18000;
   const WEEK_SECONDS = 604800;
   const MIN_MONTH_SECONDS = 28 * 24 * 60 * 60;
@@ -486,9 +498,7 @@ const buildCodexQuotaWindows = (payload: CodexUsagePayload, t: TFunction): Codex
         `additional-${index + 1}`;
 
       const idPrefix = normalizeWindowId(limitName) || `additional-${index + 1}`;
-      const additionalPrimaryWindow = rateInfo.primary_window ?? rateInfo.primaryWindow ?? null;
-      const additionalSecondaryWindow =
-        rateInfo.secondary_window ?? rateInfo.secondaryWindow ?? null;
+      const additionalWindows = pickClassifiedWindows(rateInfo);
       const additionalLimitReached = rateInfo.limit_reached ?? rateInfo.limitReached;
       const additionalAllowed = rateInfo.allowed;
 
@@ -497,12 +507,12 @@ const buildCodexQuotaWindows = (payload: CodexUsagePayload, t: TFunction): Codex
         t('codex_quota.additional_primary_window', { name: limitName }),
         'codex_quota.additional_primary_window',
         { name: limitName },
-        additionalPrimaryWindow,
+        additionalWindows.fiveHourWindow,
         additionalLimitReached,
         additionalAllowed
       );
       const additionalSecondaryMeta = selectSecondaryWindowMeta(
-        additionalSecondaryWindow,
+        additionalWindows.weeklyWindow,
         { id: 'weekly', labelKey: 'codex_quota.additional_secondary_window' },
         { id: 'monthly', labelKey: 'codex_quota.additional_team_secondary_window' }
       );
@@ -511,7 +521,7 @@ const buildCodexQuotaWindows = (payload: CodexUsagePayload, t: TFunction): Codex
         t(additionalSecondaryMeta.labelKey, { name: limitName }),
         additionalSecondaryMeta.labelKey,
         { name: limitName },
-        additionalSecondaryWindow,
+        additionalWindows.weeklyWindow,
         additionalLimitReached,
         additionalAllowed
       );
@@ -556,6 +566,7 @@ const fetchCodexResetCredits = async (
     if (result.statusCode < 200 || result.statusCode >= 300) {
       return {
         availableCount: null,
+        applicableAvailableCount: null,
         credits: [],
         error: getApiCallErrorMessage(result),
       };
@@ -565,6 +576,7 @@ const fetchCodexResetCredits = async (
     if (summary.invalidPayload) {
       return {
         availableCount: null,
+        applicableAvailableCount: null,
         credits: [],
         error: t('codex_quota.reset_credits_invalid_payload'),
       };
@@ -572,12 +584,14 @@ const fetchCodexResetCredits = async (
 
     return {
       availableCount: summary.availableCount,
+      applicableAvailableCount: summary.applicableAvailableCount,
       credits: summary.credits,
       error: '',
     };
   } catch (err: unknown) {
     return {
       availableCount: null,
+      applicableAvailableCount: null,
       credits: [],
       error: err instanceof Error ? err.message : t('common.unknown_error'),
     };
@@ -613,22 +627,25 @@ const fetchCodexQuota = async (file: AuthFileItem, t: TFunction): Promise<CodexQ
 
   const planTypeFromUsage = normalizePlanType(payload.plan_type ?? payload.planType);
   const resetCredits = payload.rate_limit_reset_credits ?? payload.rateLimitResetCredits ?? null;
-  const usageResetCreditsAvailableCount = normalizeNumberValue(
-    resetCredits?.available_count ?? resetCredits?.availableCount
-  );
+  const usageResetCreditsData = normalizeCodexResetCreditsPayload(resetCredits);
   const resetCreditsData = await fetchCodexResetCredits(authIndex, requestHeader, t);
   const resetCreditsCountFromDetails =
     resetCreditsData.credits.length > 0 ? resetCreditsData.credits.length : null;
   const rateLimitResetCreditsAvailableCount =
     resetCreditsData.availableCount ??
     resetCreditsCountFromDetails ??
-    usageResetCreditsAvailableCount;
+    usageResetCreditsData.availableCount;
+  const rateLimitResetCreditsApplicableAvailableCount =
+    usageResetCreditsData.applicableAvailableCount ??
+    resetCreditsData.applicableAvailableCount ??
+    rateLimitResetCreditsAvailableCount;
   const planType = planTypeFromUsage ?? planTypeFromFile;
   const windows = buildCodexQuotaWindows(payload, t);
   return {
     planType,
     subscriptionActiveUntil,
     rateLimitResetCreditsAvailableCount,
+    rateLimitResetCreditsApplicableAvailableCount,
     rateLimitResetCredits: resetCreditsData.credits,
     rateLimitResetCreditsError: resetCreditsData.error,
     windows,
@@ -887,6 +904,9 @@ const renderAntigravityItems = (
 };
 
 const PREMIUM_CODEX_PLAN_TYPES = new Set(['pro', 'prolite', 'pro-lite', 'pro_lite']);
+// Pro 20x（plan=pro）在金色 premium 之上再进一档：钻石徽章。
+// 金卡亮度已用满（HDR 超白），再上一档只能换材质，不能再加亮。
+const ELITE_CODEX_PLAN_TYPE = 'pro';
 
 const renderCodexItems = (
   quota: CodexQuotaState,
@@ -916,12 +936,20 @@ const renderCodexItems = (
   };
 
   const planLabel = getPlanLabel(planType);
-  const isPremiumPlan = PREMIUM_CODEX_PLAN_TYPES.has(normalizePlanType(planType) ?? '');
+  const normalizedPlanType = normalizePlanType(planType) ?? '';
+  const isPremiumPlan = PREMIUM_CODEX_PLAN_TYPES.has(normalizedPlanType);
+  const isElitePlan = normalizedPlanType === ELITE_CODEX_PLAN_TYPE;
   const expiryLabel = subscriptionActiveUntil ? formatDateTimeValue(subscriptionActiveUntil) : '';
   const nodes: ReactNode[] = [];
 
   if (planLabel || expiryLabel || rateLimitResetCreditsAvailableCount !== null) {
-    const planValueClass = isPremiumPlan ? styleMap.premiumPlanValue : styleMap.codexPlanValue;
+    // 顺序敏感：'pro' 同时命中 PREMIUM_CODEX_PLAN_TYPES，elite 分支必须留在最前，
+    // 否则 Pro 20x 会静默退回金卡（无测试覆盖类名契约，改这里请手动目视）。
+    const planValueClass = isElitePlan
+      ? styleMap.elitePlanValue
+      : isPremiumPlan
+        ? styleMap.premiumPlanValue
+        : styleMap.codexPlanValue;
     const planNodes: ReactNode[] = [];
 
     const appendPlanItem = (
@@ -1045,18 +1073,35 @@ const renderCodexItems = (
   return h(Fragment, null, ...nodes);
 };
 
-const buildClaudeQuotaWindows = (
+const findFableUsageLimit = (payload: ClaudeUsagePayload) => {
+  if (!Array.isArray(payload.limits)) return null;
+
+  const candidates = payload.limits.filter((limit) => {
+    const kind = (normalizeStringValue(limit?.kind) ?? '').trim().toLowerCase();
+    const modelName = (normalizeStringValue(limit?.scope?.model?.display_name) ?? '')
+      .trim()
+      .toLowerCase();
+    const isFable = modelName === 'fable' || modelName === 'fable 5';
+    return kind === 'weekly_scoped' && isFable && normalizeNumberValue(limit?.percent) !== null;
+  });
+
+  return candidates.find((limit) => limit.is_active === true) ?? candidates[0] ?? null;
+};
+
+export const buildClaudeQuotaWindows = (
   payload: ClaudeUsagePayload,
   t: TFunction
 ): ClaudeQuotaWindow[] => {
   const windows: ClaudeQuotaWindow[] = [];
+  const fableLimit = findFableUsageLimit(payload);
 
   for (const { key, id, labelKey } of CLAUDE_USAGE_WINDOW_KEYS) {
+    if (key === 'iguana_necktie' && fableLimit) continue;
     const window = payload[key as keyof ClaudeUsagePayload];
     if (!window || typeof window !== 'object' || !('utilization' in window)) continue;
-    const typedWindow = window as { utilization: number; resets_at: string };
+    const typedWindow = window as { utilization: number; resets_at: string | null };
     const usedPercent = normalizeNumberValue(typedWindow.utilization);
-    const resetLabel = formatQuotaResetTime(typedWindow.resets_at);
+    const resetLabel = formatQuotaResetTime(typedWindow.resets_at ?? undefined);
     windows.push({
       id,
       label: t(labelKey),
@@ -1064,6 +1109,19 @@ const buildClaudeQuotaWindows = (
       usedPercent,
       resetLabel,
     });
+  }
+
+  if (fableLimit) {
+    const usedPercent = normalizeNumberValue(fableLimit.percent);
+    if (usedPercent !== null) {
+      windows.push({
+        id: 'seven-day-fable',
+        label: t('claude_quota.seven_day_fable'),
+        labelKey: 'claude_quota.seven_day_fable',
+        usedPercent,
+        resetLabel: formatQuotaResetTime(fableLimit.resets_at ?? undefined),
+      });
+    }
   }
 
   return windows;
@@ -1322,7 +1380,10 @@ export const CODEX_CONFIG: QuotaConfig<CodexQuotaState, CodexQuotaData> = {
   filterFn: (file) => isCodexFile(file) && !isDisabledAuthFile(file),
   fetchQuota: fetchCodexQuota,
   resetQuota: resetCodexQuota,
-  canResetQuota: (quota) => (quota.rateLimitResetCreditsAvailableCount ?? 0) > 0,
+  canResetQuota: (quota) =>
+    (quota.rateLimitResetCreditsApplicableAvailableCount ??
+      quota.rateLimitResetCreditsAvailableCount ??
+      0) > 0,
   storeSelector: (state) => state.codexQuota,
   storeSetter: 'setCodexQuota',
   buildLoadingState: () => ({
@@ -1337,6 +1398,8 @@ export const CODEX_CONFIG: QuotaConfig<CodexQuotaState, CodexQuotaData> = {
     planType: data.planType,
     subscriptionActiveUntil: data.subscriptionActiveUntil,
     rateLimitResetCreditsAvailableCount: data.rateLimitResetCreditsAvailableCount,
+    rateLimitResetCreditsApplicableAvailableCount:
+      data.rateLimitResetCreditsApplicableAvailableCount,
     rateLimitResetCredits: data.rateLimitResetCredits,
     rateLimitResetCreditsError: data.rateLimitResetCreditsError,
   }),
@@ -1498,11 +1561,63 @@ const requestXaiBilling = async (
   return buildXaiBillingSummary(payload?.config);
 };
 
+const requestXaiPaidHealth = async (authIndex: string): Promise<XaiBillingSummary> => {
+  const [profileRequest, chatRequest] = await Promise.allSettled([
+    apiCallApi.request(
+      {
+        authIndex,
+        method: 'GET',
+        url: XAI_API_ME_URL,
+        header: XAI_API_REQUEST_HEADERS,
+      },
+      { timeout: XAI_PAID_HEALTH_REQUEST_TIMEOUT_MS }
+    ),
+    apiCallApi.request(
+      {
+        authIndex,
+        method: 'POST',
+        url: XAI_API_CHAT_URL,
+        header: {
+          ...XAI_API_REQUEST_HEADERS,
+          'Content-Type': 'application/json',
+        },
+        data: JSON.stringify({
+          model: XAI_PAID_HEALTH_MODEL,
+          messages: [{ role: 'user', content: 'ping' }],
+          max_tokens: 1,
+          stream: false,
+        }),
+      },
+      { timeout: XAI_PAID_HEALTH_REQUEST_TIMEOUT_MS }
+    ),
+  ]);
+
+  if (chatRequest.status === 'rejected') throw chatRequest.reason;
+  if (chatRequest.value.statusCode < 200 || chatRequest.value.statusCode >= 300) {
+    throw createStatusError(
+      getApiCallErrorMessage(chatRequest.value),
+      chatRequest.value.statusCode
+    );
+  }
+
+  const profile =
+    profileRequest.status === 'fulfilled' &&
+    profileRequest.value.statusCode >= 200 &&
+    profileRequest.value.statusCode < 300
+      ? profileRequest.value.body
+      : null;
+  return buildXaiPaidHealthSummary(profile);
+};
+
 const fetchXaiQuota = async (file: AuthFileItem, t: TFunction): Promise<XaiBillingSummary> => {
   const rawAuthIndex = file['auth_index'] ?? file.authIndex;
   const authIndex = normalizeAuthIndex(rawAuthIndex);
   if (!authIndex) {
     throw new Error(t('xai_quota.missing_auth_index'));
+  }
+
+  if (isPaidXaiAuthFile(file)) {
+    return requestXaiPaidHealth(authIndex);
   }
 
   const requestHeader = buildXaiRequestHeaders(file);
@@ -1513,14 +1628,19 @@ const fetchXaiQuota = async (file: AuthFileItem, t: TFunction): Promise<XaiBilli
   const weeklySummary = weeklyResult.status === 'fulfilled' ? weeklyResult.value : null;
   const monthlySummary = monthlyResult.status === 'fulfilled' ? monthlyResult.value : null;
   const summary = mergeXaiBillingSummaries(weeklySummary, monthlySummary);
-  if (!summary) {
-    if (weeklyResult.status === 'rejected' && monthlyResult.status === 'rejected') {
-      throw weeklyResult.reason;
-    }
-    throw new Error(t('xai_quota.empty_data'));
-  }
+  if (summary) return summary;
 
-  return summary;
+  const billingError =
+    weeklyResult.status === 'rejected' && monthlyResult.status === 'rejected'
+      ? weeklyResult.reason
+      : new Error(t('xai_quota.empty_data'));
+
+  try {
+    return await requestXaiPaidHealth(authIndex);
+  } catch {
+    // Preserve the original free billing error when neither account mode can be queried.
+    throw billingError;
+  }
 };
 
 const formatUsdFromCents = (cents: number | null): string => {
@@ -1584,6 +1704,20 @@ const renderXaiItems = (
 
   if (!billing) {
     return h('div', { className: styleMap.quotaMessage }, t('xai_quota.empty_data'));
+  }
+
+  if (billing.mode === 'paid-health') {
+    return h(
+      Fragment,
+      null,
+      h(
+        'div',
+        { className: styleMap.codexPlan },
+        h('span', { className: styleMap.codexPlanLabel }, t('xai_quota.plan_label')),
+        h('span', { className: styleMap.premiumPlanValue }, t('xai_quota.plan_paid'))
+      ),
+      h('div', { className: styleMap.quotaMessage }, t('xai_quota.paid_health'))
+    );
   }
 
   const clampedUsed =
