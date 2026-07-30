@@ -58,6 +58,7 @@ export interface CodexQuotaFetchWithMetaResult {
     planType: string | null;
     subscriptionActiveUntil: string | number | null;
     rateLimitResetCreditsAvailableCount: number | null;
+    rateLimitResetCreditsApplicableAvailableCount: number | null;
     rateLimitResetCredits: CodexRateLimitResetCredit[];
     rateLimitResetCreditsError: string;
     windows: CodexQuotaWindow[];
@@ -276,6 +277,7 @@ export const buildCodexQuotaWindowsWithMeta = (
 
 type CodexResetCreditsData = {
   availableCount: number | null;
+  applicableAvailableCount: number | null;
   credits: CodexRateLimitResetCredit[];
   error: string;
 };
@@ -302,22 +304,34 @@ const fetchCodexResetCredits = async (
     );
 
     if (result.statusCode < 200 || result.statusCode >= 300) {
-      return { availableCount: null, credits: [], error: getApiCallErrorMessage(result) };
+      return {
+        availableCount: null,
+        applicableAvailableCount: null,
+        credits: [],
+        error: getApiCallErrorMessage(result),
+      };
     }
 
     const summary = normalizeCodexResetCreditsPayload(result.body ?? result.bodyText);
     if (summary.invalidPayload) {
       return {
         availableCount: null,
+        applicableAvailableCount: null,
         credits: [],
         error: t('codex_quota.reset_credits_invalid_payload'),
       };
     }
 
-    return { availableCount: summary.availableCount, credits: summary.credits, error: '' };
+    return {
+      availableCount: summary.availableCount,
+      applicableAvailableCount: summary.applicableAvailableCount,
+      credits: summary.credits,
+      error: '',
+    };
   } catch (err: unknown) {
     return {
       availableCount: null,
+      applicableAvailableCount: null,
       credits: [],
       error: err instanceof Error ? err.message : t('common.unknown_error'),
     };
@@ -363,22 +377,25 @@ export const fetchCodexQuotaWithMeta = async (
   const planTypeFromUsage = normalizePlanType(payload.plan_type ?? payload.planType);
   const planType = planTypeFromUsage ?? planTypeFromFile;
   const resetCredits = payload.rate_limit_reset_credits ?? payload.rateLimitResetCredits ?? null;
-  const usageResetCreditsAvailableCount = normalizeNumberValue(
-    resetCredits?.available_count ?? resetCredits?.availableCount
-  );
+  const usageResetCreditsData = normalizeCodexResetCreditsPayload(resetCredits);
   const resetCreditsData = await fetchCodexResetCredits(authIndex, requestHeader, t);
   const resetCreditsCountFromDetails =
     resetCreditsData.credits.length > 0 ? resetCreditsData.credits.length : null;
   const rateLimitResetCreditsAvailableCount =
     resetCreditsData.availableCount ??
     resetCreditsCountFromDetails ??
-    usageResetCreditsAvailableCount;
+    usageResetCreditsData.availableCount;
+  const rateLimitResetCreditsApplicableAvailableCount =
+    usageResetCreditsData.applicableAvailableCount ??
+    resetCreditsData.applicableAvailableCount ??
+    rateLimitResetCreditsAvailableCount;
   const { windows, meta } = buildCodexQuotaWindowsWithMeta(payload, t, planType);
   return {
     data: {
       planType,
       subscriptionActiveUntil,
       rateLimitResetCreditsAvailableCount,
+      rateLimitResetCreditsApplicableAvailableCount,
       rateLimitResetCredits: resetCreditsData.credits,
       rateLimitResetCreditsError: resetCreditsData.error,
       windows,
