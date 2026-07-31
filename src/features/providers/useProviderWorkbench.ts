@@ -24,6 +24,7 @@ import {
   xaiToResource,
 } from './adapters';
 import { PROVIDER_BRAND_ORDER } from './descriptors';
+import { buildThinkingFromLevels } from './thinkingLevels';
 import type {
   ProviderBrand,
   ProviderEntryFormInput,
@@ -109,7 +110,13 @@ const parseThinkingJson = (value: string | undefined): Record<string, unknown> |
   return parsed as Record<string, unknown>;
 };
 
-const buildExcludedModels = (
+/**
+ * `'*'` 是「该 provider 已停用」的编码，其唯一所有者是 `form.disabled`：
+ * 载入时 `stripDisableAllModelsRule` 把它剥进该 flag，保存时仅凭该 flag 重新追加。
+ * 因此这里必须过滤掉用户在文本里手打的 `'*'`——排除模型的编辑面永远不该能开关停用。
+ * 导出仅为让 tests/providerExcludedModelsDisableRule.test.ts 钉住这个不变量。
+ */
+export const buildExcludedModels = (
   textValue: string,
   disabled: boolean,
   brand: ProviderBrand
@@ -127,7 +134,7 @@ const buildExcludedModels = (
 
 const buildModelAliases = (
   models: ProviderEntryFormInput['models'] | undefined,
-  includeOpenAIFields = false
+  includeImage = false
 ): ModelAlias[] =>
   (models ?? [])
     .map((m) => {
@@ -136,10 +143,12 @@ const buildModelAliases = (
         alias: m.alias?.trim() || undefined,
         priority: m.priority,
         testModel: m.testModel,
+        thinking: m.thinkingLevelsTouched
+          ? buildThinkingFromLevels(m.thinkingLevels)
+          : parseThinkingJson(m.thinkingJson),
       };
-      if (includeOpenAIFields) {
+      if (includeImage) {
         entry.image = m.image === true;
-        entry.thinking = parseThinkingJson(m.thinkingJson);
       }
       return entry;
     })
