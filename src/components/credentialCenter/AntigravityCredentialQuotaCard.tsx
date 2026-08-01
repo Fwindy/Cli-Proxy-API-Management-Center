@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ANTIGRAVITY_CONFIG } from '@/components/quota';
+import { ANTIGRAVITY_CONFIG } from '@/features/quota/providers/antigravity/data';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';

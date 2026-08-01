@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { CODEX_CONFIG } from '@/components/quota';
+import { CODEX_CONFIG } from '@/features/quota/providers/codex/data';
 import { useQuotaStore } from '@/stores';
 import { useCodexQuotaMetaStore } from '@/stores/useCodexQuotaMetaStore';
 import type { CodexQuotaState, CodexQuotaWindow } from '@/types';
