@@ -28,6 +28,8 @@ const DERIVED_INFO_KEYS = [
   'authIndex',
   'statusMessage',
   'modified',
+  // 'email' 不在此列：后端原始键名与 camelCase 同形，删掉会藏起真实数据。
+  'projectId',
 ];
 
 export type AuthFileDetailsSheetProps = {
@@ -206,6 +208,16 @@ export function AuthFileDetailsSheet(props: AuthFileDetailsSheetProps) {
                     disabled={disableControls || editor.saving || !editor.json}
                     onChange={(e) => onChange('weight', e.target.value)}
                   />
+                  <div className="form-group">
+                    <label>{t('auth_files.disable_cooling_label')}</label>
+                    <ToggleSwitch
+                      checked={editor.disableCooling}
+                      onChange={(value) => onChange('disableCooling', value)}
+                      disabled={disableControls || editor.saving || !editor.json}
+                      ariaLabel={t('auth_files.disable_cooling_label')}
+                    />
+                    <div className="hint">{t('auth_files.disable_cooling_hint')}</div>
+                  </div>
                   {supportsAuthFileWebsockets(editor.providerKey) && (
                     <div className="form-group">
                       <label>{t('auth_files.websockets_label')}</label>

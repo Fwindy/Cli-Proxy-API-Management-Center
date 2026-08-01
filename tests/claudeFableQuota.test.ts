@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { TFunction } from 'i18next';
-import { buildClaudeQuotaWindows } from '@/components/quota/quotaConfigs';
+import { buildClaudeQuotaWindows } from '@/features/quota/providers/claude/data';
 import type { ClaudeUsagePayload } from '@/types';
 import { formatQuotaResetTime } from '@/utils/quota';
 
@@ -33,6 +33,8 @@ describe('Claude Fable quota', () => {
         labelKey: 'claude_quota.seven_day_fable',
         usedPercent: 64,
         resetLabel: formatQuotaResetTime(modernReset),
+        resetAtMs: Date.parse(modernReset),
+        periodHours: 24 * 7,
       },
     ]);
   });
@@ -55,6 +57,8 @@ describe('Claude Fable quota', () => {
         labelKey: 'claude_quota.seven_day_fable',
         usedPercent: 41,
         resetLabel: formatQuotaResetTime(legacyReset),
+        resetAtMs: Date.parse(legacyReset),
+        periodHours: 24 * 7,
       },
     ]);
   });
@@ -86,6 +90,8 @@ describe('Claude Fable quota', () => {
         labelKey: 'claude_quota.seven_day_fable',
         usedPercent: 41,
         resetLabel: formatQuotaResetTime(legacyReset),
+        resetAtMs: Date.parse(legacyReset),
+        periodHours: 24 * 7,
       },
     ]);
   });
@@ -155,6 +161,8 @@ describe('Claude Fable quota', () => {
         labelKey: 'claude_quota.seven_day_fable',
         usedPercent: 64,
         resetLabel: formatQuotaResetTime(modernReset),
+        resetAtMs: Date.parse(modernReset),
+        periodHours: 24 * 7,
       },
     ]);
   });

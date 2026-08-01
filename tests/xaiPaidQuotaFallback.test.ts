@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import type { TFunction } from 'i18next';
-import { XAI_CONFIG } from '@/components/quota/quotaConfigs';
+import { XAI_CONFIG } from '@/features/quota/providers/xai/data';
 import { apiCallApi, type ApiCallRequest, type ApiCallResult } from '@/services/api';
 import {
   XAI_API_CHAT_URL,
@@ -105,7 +105,14 @@ describe('xAI paid OAuth quota fallback', () => {
         });
       }
       if (payload.url === XAI_BILLING_MONTHLY_URL) {
-        return result(200, { config: { monthlyLimit: { val: 10000 }, used: { val: 2500 } } });
+        return result(200, {
+          config: {
+            monthlyLimit: { val: 10000 },
+            used: { val: 2500 },
+            billingPeriodStart: '2026-07-01T00:00:00Z',
+            billingPeriodEnd: '2026-08-01T00:00:00Z',
+          },
+        });
       }
       throw new Error(`Unexpected URL: ${payload.url}`);
     };
@@ -121,9 +128,15 @@ describe('xAI paid OAuth quota fallback', () => {
     expect(summary).toMatchObject({
       mode: 'billing',
       source: 'cli-chat-proxy',
+      periodType: 'weekly',
       usagePercent: 25,
       monthlyLimitCents: 10000,
+      billingPeriodEnd: '2026-08-01T00:00:00Z',
+      resetAtMs: null,
+      periodHours: null,
     });
+    expect(summary.periodStart).toBeUndefined();
+    expect(summary.periodEnd).toBeUndefined();
   });
 
   test('falls back to paid health after both free billing probes fail', async () => {

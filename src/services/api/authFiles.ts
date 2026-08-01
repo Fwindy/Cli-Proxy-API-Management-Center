@@ -22,6 +22,8 @@ export type AuthFileFieldsPatch = {
   headers?: Record<string, string>;
   priority?: number;
   weight?: number | null;
+  disable_cooling?: boolean;
+  'disable-cooling'?: boolean;
   websockets?: boolean;
   using_api?: boolean;
   note?: string;
@@ -243,6 +245,10 @@ const normalizeAuthFileEntry = (entry: AuthFileEntry): AuthFileEntry => {
     typeof entry.statusMessage === 'string' ? entry.statusMessage.trim() : '';
   const statusMessage = readTextField(entry, 'status_message') || declaredStatusMessage;
   const note = readTextField(entry, 'note');
+  const email = readTextField(entry, 'email');
+  // account / account_type 故意不归一化：api-key 类凭证的 account 就是 API key 本身
+  // （sdk/cliproxy/auth/types.go AccountInfo），不能进入展示与搜索路径。
+  const projectId = readTextField(entry, 'project_id');
   const modified = readDateField(entry);
   const priority = readIntegerField(entry['priority']);
   const weight = readIntegerField(entry['weight']);
@@ -259,6 +265,8 @@ const normalizeAuthFileEntry = (entry: AuthFileEntry): AuthFileEntry => {
     priority,
     weight,
     ...(note ? { note } : {}),
+    ...(email ? { email } : {}),
+    ...(projectId ? { projectId } : {}),
   };
 };
 

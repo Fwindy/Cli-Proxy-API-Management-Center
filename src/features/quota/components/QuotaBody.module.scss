@@ -1,267 +1,131 @@
-@use '../styles/variables' as *;
-@use '../styles/mixins' as *;
+@use '../../../styles/mixins' as *;
 
-.container {
-  display: flex;
-  flex-direction: column;
-  gap: $spacing-lg;
-}
+/* ============================================================
+ * 额度卡片 body 的全页外衣（类型化契约见 features/quota/types.ts）。
+ *
+ * 两段构成：
+ * 1. 额度行 / 水位条 / Antigravity 分组 —— mono 遥测风，与紧凑外衣同族；
+ * 2. 套餐徽章区（.codexPlan* 起至文件末尾）—— 从 pages/QuotaPage.module.scss
+ *    第 429–1023 行逐字节搬迁的定稿资产（金卡 + Pro 20x 液态铂金，含暗色 /
+ *    HDR / 减动效冻结帧 / 移动端降级）。**该区块禁止改动**：改配方等于重设计
+ *    已验收的徽章，验证方式是与 git 历史做 diff（应为空）。
+ * ============================================================ */
 
-.pageHeader {
-  display: flex;
-  flex-direction: column;
-  gap: $spacing-sm;
-}
-
-.pageTitle {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin: 0;
-}
-
-.description {
-  font-size: 14px;
-  color: var(--text-secondary);
-  margin: 0;
-}
-
-.headerActions {
-  display: flex;
-  gap: $spacing-sm;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  min-width: 0;
-
-  :global(.btn.btn-sm) {
-    line-height: 16px;
-    min-width: 0;
-  }
-
-  :global(svg) {
-    display: block;
-  }
-
-  @include mobile {
-    width: 100%;
-    justify-content: stretch;
-  }
-}
-
-.titleWrapper {
-  display: flex;
-  align-items: center;
-  gap: $spacing-sm;
-  line-height: 24px;
-}
-
-.countBadge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 24px;
-  min-width: 24px;
-  padding: 0 8px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--count-badge-text);
-  background-color: var(--count-badge-bg);
-  box-sizing: border-box;
-}
-
-.errorBox {
-  padding: $spacing-md;
-  background-color: rgba($error-color, 0.1);
-  border: 1px solid var(--danger-color);
-  border-radius: $radius-md;
-  color: var(--danger-color);
-  font-size: 14px;
-}
-
-.pageSizeSelect {
-  padding: 8px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: $radius-md;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  font-size: 14px;
-  cursor: text;
-  height: 38px;
-  box-sizing: border-box;
-
-  &:focus {
-    outline: none;
-    border-color: var(--primary-color);
-  }
-}
-
-.statsInfo {
-  padding: 8px 12px;
-  background-color: var(--bg-secondary);
-  border-radius: $radius-md;
-  font-size: 13px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  height: 38px;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-}
-
-.antigravityGrid,
-.claudeGrid,
-.codexGrid,
-.kimiGrid,
-.xaiGrid {
-  display: grid;
-  gap: $spacing-md;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-
-  @include mobile {
-    grid-template-columns: 1fr;
-  }
-}
-
-.viewModeToggle {
-  display: inline-flex;
-  gap: $spacing-xs;
-  align-items: center;
-  padding: 3px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
-  border: 1px solid color-mix(in srgb, var(--border-color) 88%, transparent);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
-
-  @include mobile {
-    flex: 1 1 auto;
-    width: 100%;
-  }
-}
-
-.viewModeButton:global(.btn.btn-sm) {
-  padding: 8px 14px;
-  border-radius: 999px;
-  border-color: transparent;
-  background: transparent;
-  color: var(--text-secondary);
-  box-shadow: none;
-
-  &:hover:not(:disabled) {
-    border-color: transparent;
-    background: color-mix(in srgb, var(--bg-hover) 72%, transparent);
-    color: var(--text-primary);
-  }
-
-  > span {
-    white-space: nowrap;
-  }
-
-  @include mobile {
-    flex: 1 1 0;
-  }
-}
-
-.viewModeButtonActive:global(.btn.btn-sm) {
-  background: var(--primary-color);
-  border-color: var(--primary-color);
-  color: var(--primary-contrast, #fff);
-  box-shadow: 0 8px 18px -14px rgba(0, 0, 0, 0.45);
-
-  &:hover:not(:disabled) {
-    background: var(--primary-hover);
-    border-color: var(--primary-hover);
-    color: var(--primary-contrast, #fff);
-  }
-}
-
-.refreshAllButton:global(.btn.btn-sm) {
-  padding-inline: 14px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--primary-color) 12%, var(--bg-secondary));
-  border-color: color-mix(in srgb, var(--primary-color) 22%, var(--border-color));
-  color: var(--text-primary);
-
-  > span {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    white-space: nowrap;
-  }
-
-  &:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--primary-color) 16%, var(--bg-secondary));
-    border-color: color-mix(in srgb, var(--primary-color) 34%, var(--border-color));
-  }
-
-  @include mobile {
-    width: 100%;
-    justify-content: center;
-  }
-}
-
-:global([data-theme='dark']) .viewModeToggle {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-:global([data-theme='dark']) .refreshAllButton:global(.btn.btn-sm) {
-  background: color-mix(in srgb, var(--primary-color) 18%, var(--bg-secondary));
-  border-color: color-mix(in srgb, var(--primary-color) 32%, var(--border-color));
-}
-
-@include mobile {
-  .headerActions {
-    gap: $spacing-xs;
-  }
-}
-
-// 卡片渐变背景 — 基于 TYPE_COLORS light.bg 转 rgba
-.claudeCard {
-  background-image: linear-gradient(180deg, rgba(251, 236, 228, 0.18), rgba(251, 236, 228, 0));
-}
-
-.antigravityCard {
-  background-image: linear-gradient(180deg, rgba(224, 247, 250, 0.12), rgba(224, 247, 250, 0));
-}
-
-.codexCard {
-  background-image: linear-gradient(180deg, rgba(234, 231, 255, 0.18), rgba(234, 231, 255, 0));
-}
-
-.kimiCard {
-  background-image: linear-gradient(180deg, rgba(220, 232, 255, 0.2), rgba(220, 232, 255, 0));
-}
-
-.xaiCard {
-  background-image: linear-gradient(180deg, rgba(243, 244, 246, 0.22), rgba(243, 244, 246, 0));
-}
-
-.quotaSection {
-  display: flex;
-  flex-direction: column;
-  gap: $spacing-sm;
-  padding-top: $spacing-sm;
-  margin-top: $spacing-xs;
-  border-top: 1px dashed var(--border-color);
-}
+/* ---------- 额度行 ---------- */
 
 .quotaRow {
   display: flex;
   flex-direction: column;
-  gap: $spacing-xs;
+  gap: 5px;
+  min-width: 0;
 }
+
+.quotaRowHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.quotaModel {
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  @include text-ellipsis;
+}
+
+/* 遥测：mono + 等宽数字，刷新时数字不跳位 */
+.quotaMeta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  flex-shrink: 0;
+  font-family: $font-mono;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+/* 百分比穿墨色而非填充色 —— 文字不承担状态编码，颜色留给水位条 */
+.quotaPercent {
+  font-weight: 650;
+  color: var(--text-primary);
+}
+
+.quotaReset {
+  color: var(--text-quaternary);
+}
+
+.quotaAmount {
+  font-family: $font-mono;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.quotaMessage {
+  font-family: $font-mono;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 6px 4px;
+}
+
+/* ---------- 水位条（QuotaMeter）----------
+ * 轨道退居背景（8% 墨色），填充按剩余量三档着色；
+ * percent === null 时宽度为 0 —— 未知不着色。 */
+
+.quotaBar {
+  height: 6px;
+  border-radius: $radius-full;
+  background: color-mix(in srgb, var(--text-primary) 8%, transparent);
+  overflow: hidden;
+}
+
+.quotaBarFill {
+  height: 100%;
+  border-radius: $radius-full;
+  /* 刷新时平滑重定向到新水位（可中断） */
+  transition: width 360ms var(--ease-out-strong, ease);
+  /* 数据到达是本页的高潮时刻：水位逐行铺开（每行 40ms 级差）。
+   * 走 scaleX 而非 width，避免与上面的 width 过渡互相抢夺同一属性。 */
+  transform-origin: left center;
+  animation: quota-meter-fill 480ms var(--ease-out-strong, ease-out) both;
+  animation-delay: calc(var(--meter-index, 0) * 40ms);
+}
+
+@keyframes quota-meter-fill {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+.quotaBarFillHigh {
+  background: var(--viz-success);
+}
+
+.quotaBarFillMedium {
+  background: var(--quota-medium-color);
+}
+
+.quotaBarFillLow {
+  background: var(--viz-failure);
+}
+
+/* ---------- Antigravity 分组 ---------- */
 
 .antigravityQuotaGroup {
   display: flex;
   flex-direction: column;
-  gap: $spacing-sm;
-  padding-bottom: $spacing-xs;
-}
+  gap: 7px;
 
-.antigravityQuotaGroup + .antigravityQuotaGroup {
-  padding-top: $spacing-sm;
-  border-top: 1px solid color-mix(in srgb, var(--border-color) 65%, transparent);
+  & + & {
+    margin-top: 3px;
+    padding-top: 9px;
+    border-top: 1px dashed color-mix(in srgb, var(--border-color) 80%, transparent);
+  }
 }
 
 .antigravityQuotaGroupHeader {
@@ -272,159 +136,45 @@
 }
 
 .antigravityQuotaGroupTitle {
-  font-size: 13px;
+  font-family: $font-mono;
+  font-size: 10px;
   font-weight: 700;
-  color: var(--text-primary);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
 }
 
 .antigravityQuotaGroupDescription {
-  font-size: 12px;
-  line-height: 1.35;
-  color: var(--text-tertiary);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-quaternary);
 }
 
-.quotaRowHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: $spacing-sm;
-  min-width: 0;
-
-  @include mobile {
+@include mobile {
+  .quotaRowHeader {
     flex-direction: column;
     align-items: flex-start;
   }
-}
 
-.quotaModel {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex: 1;
-  min-width: 0;
-
-  @include mobile {
+  .quotaModel {
+    width: 100%;
     white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
   }
 }
 
-.quotaBar {
-  height: 8px;
-  background-color: var(--bg-tertiary);
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-.quotaBarFill {
-  height: 100%;
-  background-color: var(--success-color, #22c55e);
-  transition: width 0.2s ease;
-}
-
-.quotaBarFillHigh {
-  background-color: var(--success-color, #22c55e);
-}
-
-.quotaBarFillMedium {
-  background-color: var(--quota-medium-color, #e0aa14);
-}
-
-.quotaBarFillLow {
-  background-color: var(--danger-color);
-}
-
-.quotaMeta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-
-  @include mobile {
-    justify-content: flex-start;
+@media (prefers-reduced-motion: reduce) {
+  .quotaBarFill {
+    transition: none;
+    animation: none;
   }
 }
 
-.quotaPercent {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.quotaReset {
-  color: var(--text-tertiary);
-}
-
-.quotaAmount {
-  color: var(--text-secondary);
-}
-
-.quotaMessage {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  text-align: center;
-  padding: $spacing-sm 0;
-}
-
-.quotaMessageAction {
-  width: 100%;
-  border: none;
-  background: none;
-  cursor: pointer;
-  text-decoration: underline;
-
-  &:hover:not(:disabled) {
-    color: var(--text-primary);
-  }
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.6;
-    text-decoration: none;
-  }
-}
-
-.quotaCardActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: $spacing-xs;
-  flex-wrap: wrap;
-  padding-top: $spacing-xs;
-}
-
-.quotaResetCreditButton:global(.btn.btn-sm),
-.quotaRefreshButton:global(.btn.btn-sm) {
-  border-radius: 999px;
-  padding-inline: 12px;
-
-  > span {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    white-space: nowrap;
-  }
-}
-
-.quotaError {
-  font-size: 12px;
-  color: var(--danger-color);
-  background-color: rgba($error-color, 0.08);
-  border: 1px solid var(--danger-color);
-  border-radius: $radius-sm;
-  padding: $spacing-xs $spacing-sm;
-}
-
-.quotaWarning {
-  font-size: 12px;
-  color: var(--warning-text);
-  background-color: var(--warning-bg);
-  border: 1px solid var(--warning-border);
-  border-radius: $radius-sm;
-  padding: $spacing-xs $spacing-sm;
-}
+/* ============================================================
+ * 以下至文件末尾：套餐徽章定稿区块（逐字节搬迁，禁止改动）
+ * ============================================================ */
 
 .codexPlan {
   display: flex;
@@ -1019,96 +769,5 @@
       inset 0 1px 1px rgba(255, 255, 255, 0.92),
       inset 0 -1.5px 2px rgba(74, 90, 110, 0.4),
       0 0 10px rgba(190, 218, 250, 0.3);
-  }
-}
-
-.fileCard {
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: $radius-lg;
-  padding: $spacing-md;
-  display: flex;
-  flex-direction: column;
-  gap: $spacing-sm;
-  transition:
-    transform $transition-fast,
-    box-shadow $transition-fast,
-    border-color $transition-fast;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: $shadow-md;
-    border-color: rgba(37, 99, 235, 0.2);
-  }
-}
-
-.cardHeader {
-  display: flex;
-  align-items: center;
-  gap: $spacing-sm;
-  min-height: 28px;
-}
-
-.typeBadge {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.fileName {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  word-break: break-all;
-  line-height: 1.4;
-}
-
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: $spacing-md;
-  margin-top: $spacing-lg;
-  padding-top: $spacing-md;
-  border-top: 1px solid var(--border-color);
-}
-
-.pageInfo {
-  font-size: 13px;
-  color: var(--text-secondary);
-  padding: $spacing-xs $spacing-md;
-  background-color: var(--bg-secondary);
-  border-radius: $radius-md;
-}
-
-.warningOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.warningModal {
-  background-color: var(--bg-primary);
-  border-radius: $radius-lg;
-  padding: $spacing-lg;
-  max-width: 400px;
-  text-align: center;
-  box-shadow: $shadow-lg;
-
-  p {
-    margin: 0 0 $spacing-md 0;
-    color: var(--text-primary);
-    font-size: 14px;
-    line-height: 1.6;
   }
 }
