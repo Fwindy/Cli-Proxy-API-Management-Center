@@ -106,6 +106,22 @@ button.quotaMessageAction {
   color: var(--text-quaternary);
 }
 
+/* Compact host: same contract class as QuotaBody.module.scss, tighter gutter. */
+.quotaResetRelative {
+  color: var(--text-tertiary);
+
+  &::before {
+    content: '·';
+    margin: 0 3px;
+    color: var(--text-quaternary);
+  }
+}
+
+.quotaResetRelativeSoon {
+  color: var(--warning-text);
+  font-weight: 600;
+}
+
 .quotaAmount {
   font-family: $font-mono;
   font-size: 11px;
@@ -259,6 +275,16 @@ button.quotaMessageAction {
   justify-content: space-between;
   gap: 8px;
   font-size: 11.5px;
+}
+
+/* The compact host's credit rows have no border of their own, so the emphasis
+   is carried by a left rule and a tint rather than a border-colour swap. */
+.codexResetCreditRowSoon {
+  padding: 2px 6px;
+  margin: 0 -6px;
+  border-left: 2px solid var(--warning-border);
+  border-radius: $radius-sm;
+  background-color: var(--warning-bg);
 }
 
 .codexResetCreditLabel {

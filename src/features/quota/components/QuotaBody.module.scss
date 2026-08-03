@@ -58,6 +58,24 @@
   color: var(--text-quaternary);
 }
 
+/* Countdown beside the absolute reset time. The separator is a pseudo-element
+   so the two spans stay independently styleable (the relative half turns
+   warning-coloured when this is the row that recovers first). */
+.quotaResetRelative {
+  color: var(--text-tertiary);
+
+  &::before {
+    content: '·';
+    margin: 0 4px;
+    color: var(--text-quaternary);
+  }
+}
+
+.quotaResetRelativeSoon {
+  color: var(--warning-text);
+  font-weight: 600;
+}
+
 .quotaAmount {
   font-family: $font-mono;
   font-variant-numeric: tabular-nums;
@@ -232,6 +250,11 @@
   font-size: 12px;
   line-height: 1.35;
   min-width: 0;
+}
+
+.codexResetCreditRowSoon {
+  border-color: var(--warning-border);
+  background-color: var(--warning-bg);
 }
 
 .codexResetCreditLabel {
