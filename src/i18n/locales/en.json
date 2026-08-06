@@ -831,6 +831,21 @@
   },
   "config_management": {
     "title": "Config Panel",
+    "meta_fields": "{{count}} settings",
+    "meta_dirty": "{{count}} unsaved",
+    "meta_dirty_source": "Unsaved source edits",
+    "meta_errors": "{{count}} validation errors",
+    "meta_synced": "In sync",
+    "actions": {
+      "discard": "Discard changes",
+      "save": "Save changes"
+    },
+    "discard_confirm_message": "Discard all unsaved changes and restore the last server version?",
+    "mode": {
+      "label": "Editor mode",
+      "visual": "Visual",
+      "source": "Source"
+    },
     "reload": "Reload",
     "reload_confirm_message": "Reloading will discard your unsaved changes. Do you want to continue?",
     "save": "Save",
@@ -864,26 +879,16 @@
       "confirm": "Confirm Save",
       "no_changes": "No changes detected"
     },
-    "tabs": {
-      "visual": "Visual Editor",
-      "source": "Source File Editor"
-    },
     "visual": {
-      "notice": "Visual mode covers common fields. Review or edit unsupported config.yaml entries in source mode.",
-      "quick_jump": "Quick Jump",
-      "mode": {
-        "simple": "Simple",
-        "full": "Full",
-        "label": "Editor mode",
-        "more_settings": "Switch to full mode to see all {{total}} sections",
-        "validation_banner": "Some advanced settings have validation errors and are blocking save. Switch to full mode to fix them.",
-        "switch_to_full": "Switch to full mode"
-      },
       "search": {
         "placeholder": "Search settings (label or YAML key)",
         "no_results": "No matching settings"
       },
       "sections": {
+        "common": {
+          "title": "Common",
+          "description": "The most-used settings, backed by the same data as the full sections"
+        },
         "connectivity": {
           "title": "Access & Authentication",
           "description": "Server address, port, auth directory, and API keys"
@@ -899,8 +904,6 @@
           "signature_title": "Antigravity Signature"
         },
         "server": {
-          "title": "Server Configuration",
-          "description": "Basic server settings",
           "host": "Host Address",
           "port": "Port"
         },
@@ -926,14 +929,10 @@
           "panel_repo": "Panel Repository"
         },
         "auth": {
-          "title": "Authentication Configuration",
-          "description": "API keys and authentication directory settings",
           "auth_dir": "Auth Directory (auth-dir)",
           "auth_dir_hint": "Directory path for authentication files (supports ~)"
         },
         "system": {
-          "title": "System Configuration",
-          "description": "Debug, logging, statistics, and performance settings",
           "debug": "Debug Mode",
           "debug_desc": "Enable verbose debug logging",
           "commercial_mode": "Commercial Mode",
@@ -1078,7 +1077,15 @@
         "input_placeholder": "Paste your API key",
         "input_hint": "This only modifies the local config file content, it will not sync to the API Key Management interface",
         "error_empty": "Please enter an API key",
-        "error_invalid": "API key contains invalid characters"
+        "error_invalid": "API key contains invalid characters",
+        "strength": {
+          "label": "API key strength",
+          "empty": "Not entered",
+          "weak": "Weak",
+          "fair": "Fair",
+          "good": "Good",
+          "strong": "Strong"
+        }
       },
       "payload_rules": {
         "rule": "Rule",

@@ -2,8 +2,11 @@
 //
 // IMPORTANT: this index is maintained by hand and is NOT what drives field
 // rendering — it only powers search. When you add, remove, or move a field in
-// VisualConfigEditor.tsx, update the matching entry here (and wrap the field's
-// JSX in <FieldAnchor fieldId="..."> using the same `fieldId`).
+// components/sections/*.tsx (or fields/sharedFields.tsx), update the matching
+// entry here, wrap the field's JSX in <FieldAnchor fieldId="..."> with the same
+// `fieldId`, and map it in constants.ts FIELD_VALUE_KEYS.
+// tests/configFieldParity.test.ts enforces the three-way parity — a missing or
+// extra entry anywhere fails CI.
 
 export type VisualSectionId =
   'connectivity' | 'network' | 'logging' | 'quota' | 'streaming' | 'advanced' | 'payload';
