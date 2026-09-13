@@ -141,6 +141,7 @@ export const CONFIG_FIELD_SEARCH_INDEX: ConfigFieldSearchEntry[] = [
     fieldId: 'maxRetryInterval',
     sectionId: 'network',
     labelKey: L('sections.network.max_retry_interval'),
+    hintKey: L('sections.network.max_retry_interval_hint'),
     yamlKeys: ['max-retry-interval'],
   },
   {
