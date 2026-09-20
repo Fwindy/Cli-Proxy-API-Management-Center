@@ -372,6 +372,7 @@
     "priority_placeholder": "例如: 10 或 -1",
     "priority_hint": "僅支援整數；無效值會被忽略。數值越大優先順序越高。",
     "weight_label": "調度權重（weight）",
+    "weight_tooltip": "預設值為 1；小於或等於 0 時不參與加權調度；最大值為 1,000,000。填入後開啟加權輪詢設定即可生效。",
     "weight_hint": "預設值為 1；小於或等於 0 時不參與加權調度；最大值為 1,000,000。填入後開啟<settingsLink>加權輪詢設定</settingsLink>即可生效。",
     "weight_invalid_integer": "權重必須是整數。",
     "weight_invalid_max": "權重不能超過 1,000,000。",
@@ -503,7 +504,8 @@
     "plan_team": "Team",
     "plan_free": "Free",
     "plan_pro": "Pro 20x",
-    "plan_prolite": "Pro 5x"
+    "plan_prolite": "Pro 5x",
+    "plan_business_premium": "Business Premium"
   },
   "devin_quota": {
     "daily": "每日剩餘額度",
@@ -578,6 +580,7 @@
     "weekly_limit": "週限額",
     "monthly_credits": "月度點數",
     "used_percent": "已用 {{percent}}",
+    "usage_unavailable": "xAI 用量暫不可用",
     "reset_at": "重置 {{time}}",
     "product_usage": "{{product}} 使用",
     "plan_label": "方案",
@@ -1310,6 +1313,11 @@
     }
   },
   "quota_management": {
+    "search_label": "搜尋帳號",
+    "search_placeholder": "依檔案名稱或電子郵件搜尋",
+    "search_empty_title": "沒有符合的帳號",
+    "search_empty_desc": "請嘗試其他檔案名稱或電子郵件，或清除搜尋。",
+    "search_clear": "清除搜尋",
     "title": "配額管理",
     "description": "集中查看 OAuth 配額與剩餘情況",
     "refresh_all_credentials": "重新整理全部憑證",
