@@ -65,7 +65,7 @@
     "subtitle": "Management Center"
   },
   "login": {
-    "subtitle": "Please enter connection information to access the management interface",
+    "subtitle": "Connect to CLI Proxy API v8 or later",
     "connection_current": "Current URL",
     "connection_auto_hint": "The system will automatically use the current URL for connection",
     "custom_connection_label": "Custom Connection URL:",
@@ -83,7 +83,8 @@
     "error_timeout": "Connection timed out, server not responding",
     "error_unauthorized": "Authentication failed, management key is missing or invalid",
     "error_forbidden": "Access denied, remote management is disabled, the management key is not configured, or this IP is temporarily banned",
-    "error_not_found": "Management API not found, confirm the server address points to the CLIProxyAPI backend",
+    "error_not_found": "v8 Management API not found. Check the server address and upgrade CLIProxyAPI to v8 or later; v0 is not supported.",
+    "error_legacy_backend": "This backend accepts v0 Management API but does not provide v8. Upgrade CLIProxyAPI to v8 or later to use this management page.",
     "error_server": "Backend failed while handling the management request, check the server logs",
     "error_cors": "Cross-origin request blocked, please check server configuration",
     "error_ssl": "SSL/TLS certificate verification failed"
@@ -253,6 +254,12 @@
     "cooldown_deadline": "Timer deadline",
     "cooldown_observed": "Snapshot at",
     "cooldown_note": "Local scheduling snapshot; remaining times are estimates. Expiry does not guarantee availability, quota recovery, or an automatic retry. Model names are internal state keys; backoff levels are not failure counts.",
+    "cooldown_reset_button": "Clear cooldown",
+    "cooldown_reset_hint": "Clear this credential's local routing cooldown",
+    "cooldown_reset_title": "Clear credential cooldown?",
+    "cooldown_reset_confirm": "Clear the local routing cooldown for “{{name}}”? This may make the credential eligible for another request immediately. It does not restore upstream quota.",
+    "cooldown_reset_success": "Cooldown cleared for {{name}}.",
+    "cooldown_reset_failed": "Could not clear cooldown for {{name}}: {{message}}",
     "cooldown_reason_quota": "Quota restriction",
     "cooldown_reason_credential_quota": "Credential quota restriction",
     "cooldown_reason_cloudflare_challenge": "Cloudflare challenge",
@@ -893,6 +900,26 @@
     "no_requests": "No requests"
   },
   "logs": {
+    "preview_too_large": "This request log exceeds the 2 MiB preview limit. Download it to view.",
+    "read_status_live": "Reading continuously",
+    "read_status_paused": "Reading paused",
+    "read_status_catching_up": "Catching up on queued logs",
+    "last_updated": "Last successful update: {{time}}",
+    "buffer_scope": "Searching loaded logs only: {{count}} lines cached, {{matched}} lines matched",
+    "buffer_evicted": "Older logs have been removed from the cache and cannot be searched here",
+    "cursor_reset_notice": "Logs were rotated or reset. The latest content has been reloaded.",
+    "history_evicted": "Your reading position is no longer cached. Please choose a new position.",
+    "resume_following": "Back to latest · New lines: {{count}}",
+    "level_filter": "Log level",
+    "all_levels": "All levels",
+    "view_request": "View log for request {{id}}",
+    "copy_line": "Copy this line",
+    "request_log_missing": "Request log not found: it may not have been recorded or may have been cleaned up. When request logging is disabled, only error request logs are usually retained.",
+    "download_cached": "Download cached logs",
+    "clear_application_confirm": "Clear application logs on the server? Request log files will not be deleted. This action cannot be undone.",
+    "clear_search": "Clear search",
+    "reading_enabled": "Continuous reading",
+    "filter_load_more": "Show more matching logs",
     "title": "Logs Viewer",
     "refresh_button": "Refresh Logs",
     "clear_button": "Clear Logs",
@@ -939,7 +966,8 @@
     "show_raw_logs": "Show Raw Logs",
     "show_raw_logs_hint": "Show original log text for easier multi-line copy",
     "search_placeholder": "Search logs by content or keyword",
-    "filter_panel_title": "Structured Filters",
+    "filter_panel_title": "Filters & display",
+    "wrap_lines": "Wrap long lines",
     "filter_panel_expand": "Expand structured filters",
     "filter_panel_collapse": "Collapse structured filters",
     "filter_panel_active_count": "{{count}} active",
@@ -996,6 +1024,10 @@
     "validation_blocked_short": "Fix errors",
     "visual_mode_unavailable_detail": "Visual editor is unavailable because the configuration contains invalid YAML: {{message}}",
     "visual_mode_save_blocked": "Cannot save from visual mode until the YAML syntax is fixed",
+    "source_changes_before_visual": "Save or discard your unsaved source edits before switching to visual mode.",
+    "precise_save_incomplete": "The precise save did not finish; some changes may already be applied. Your draft is retained. Save again to review the remaining server differences.",
+    "concurrent_list_conflict": "The server list {{path}} changed after your draft baseline. Saving was blocked to avoid overwriting those changes. Your draft is retained; note your edits, then reload the configuration and reconcile them.",
+    "precise_save_recovery_required": "Could not read back the save result. Editing is paused. Save again to recover the draft baseline, or reload the configuration.",
     "visual_mode_latest_yaml_invalid": "The latest server configuration contains invalid YAML. Review it in source mode before saving visual changes: {{message}}",
     "editor_placeholder": "key: value",
     "search_placeholder": "Search config...",
@@ -1060,7 +1092,7 @@
           "panel_repo": "Panel Repository"
         },
         "auth": {
-          "auth_dir": "Auth Directory (auth-dir)",
+          "auth_dir": "OAuth Credential Directory (oauth.auth-dir)",
           "auth_dir_hint": "Directory path for authentication files (supports ~)"
         },
         "system": {
@@ -1109,12 +1141,12 @@
           "redis_usage_retention_hint": "In-memory retention for RESP LPOP/RPOP usage output, max 3600 seconds",
           "antigravity_sensitive_words": "Sensitive Word Obfuscation",
           "antigravity_sensitive_words_desc": "Insert zero-width characters into matching words in Antigravity system instructions to reduce exact keyword matching upstream",
-          "antigravity_sensitive_words_label": "Sensitive words (antigravity.sensitive-words)",
+          "antigravity_sensitive_words_label": "OAuth sensitive words (oauth.providers.antigravity.sensitive-words)",
           "antigravity_sensitive_words_placeholder": "proxy",
           "antigravity_sensitive_words_hint": "One word or phrase per row. Matching is case-insensitive; empty entries are removed and entries shorter than 2 characters are ignored by the backend",
           "devin_sensitive_words": "Devin System Prompt Sensitive Words",
           "devin_sensitive_words_desc": "In Devin system prompts only, a line containing a configured word is removed in full; the remaining system prompt is then obfuscated. Regular messages and tool arguments are not changed",
-          "devin_sensitive_words_label": "Sensitive words (devin.sensitive-words)",
+          "devin_sensitive_words_label": "OAuth sensitive words (oauth.providers.devin.sensitive-words)",
           "devin_sensitive_words_placeholder": "sensitive phrase",
           "devin_sensitive_words_hint": "One word or phrase per row. Configure carefully: matching content causes the entire system-prompt line to be deleted; empty entries are removed when saved",
           "antigravity_signature_cache": "Enable Antigravity Signature Cache",
@@ -1125,8 +1157,8 @@
         "headers": {
           "title": "Header Defaults",
           "description": "Default headers for Claude and Codex OAuth requests when the client omits them",
-          "claude_title": "Claude Header Defaults",
-          "codex_title": "Codex Header Defaults",
+          "claude_title": "Claude OAuth Header Defaults",
+          "codex_title": "Codex OAuth Header Defaults",
           "user_agent": "User-Agent",
           "package_version": "Package Version",
           "runtime_version": "Runtime Version",
@@ -1171,7 +1203,7 @@
           "disable_cooling_desc": "Globally disable auth/model cooldown windows after failures",
           "session_affinity": "Session Affinity Routing",
           "ws_auth": "WebSocket Authentication",
-          "ws_auth_desc": "Enable WebSocket authentication (/v1/ws)"
+          "ws_auth_desc": "Require authentication for AI Studio WebSocket connections (oauth.providers.aistudio.ws-auth)"
         },
         "quota": {
           "title": "Quota Fallback",
@@ -1209,7 +1241,7 @@
         }
       },
       "api_keys": {
-        "label": "API Keys List (api-keys)",
+        "label": "Client API Keys (access.api-keys)",
         "add": "Add API Key",
         "generate": "Generate",
         "empty": "No API keys",
@@ -1218,7 +1250,7 @@
         "add_title": "Add API Key",
         "input_label": "API Key",
         "input_placeholder": "Paste your API key",
-        "input_hint": "This only modifies the local config file content, it will not sync to the API Key Management interface",
+        "input_hint": "Changes take effect after saving the configuration. Upstream provider keys are managed separately.",
         "error_empty": "Please enter an API key",
         "error_invalid": "API key contains invalid characters",
         "strength": {
@@ -1588,6 +1620,9 @@
     "version": "Management UI Version"
   },
   "providersPage": {
+    "groups": {
+      "rowHint": "Unchanged fields keep their group inheritance. Base URL changes affect every key in this group. New rows create new groups."
+    },
     "header": {
       "title": "AI Providers",
       "activeResources": "{{active}}/{{total}} active resources",

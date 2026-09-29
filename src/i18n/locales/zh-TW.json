@@ -65,7 +65,7 @@
     "subtitle": "管理中心"
   },
   "login": {
-    "subtitle": "請輸入連線資訊以存取管理介面",
+    "subtitle": "連線至 CLI Proxy API v8 或更新版本",
     "connection_current": "目前位址",
     "connection_auto_hint": "系統將自動使用目前存取位址進行連線",
     "custom_connection_label": "自訂連線位址:",
@@ -83,7 +83,8 @@
     "error_timeout": "連線逾時，伺服器無回應",
     "error_unauthorized": "驗證失敗，管理金鑰缺失或無效",
     "error_forbidden": "存取被拒絕，遠端管理未啟用、管理金鑰未設定或 IP 被暫時封鎖",
-    "error_not_found": "找不到 Management API，請確認服務位址指向 CLIProxyAPI 後端",
+    "error_not_found": "找不到 v8 Management API，請檢查服務位址並將 CLIProxyAPI 升級至 v8 或更新版本；不再支援 v0 介面。",
+    "error_legacy_backend": "目前後端可使用 v0 管理介面，但不支援 v8。請將 CLIProxyAPI 升級至 v8 或更新版本後再使用此管理頁面。",
     "error_server": "後端處理管理介面時發生錯誤，請查看服務日誌",
     "error_cors": "跨域請求被阻擋，請檢查伺服器設定",
     "error_ssl": "SSL/TLS 憑證驗證失敗"
@@ -251,6 +252,12 @@
     "cooldown_deadline": "計時截止",
     "cooldown_observed": "快照時間",
     "cooldown_note": "本機排程快照，剩餘時間為估算；到期不代表憑證可用、額度恢復或自動重試。模型名稱為內部狀態鍵，退避等級不是失敗次數。",
+    "cooldown_reset_button": "清除冷卻",
+    "cooldown_reset_hint": "清除此憑證的本機路由冷卻狀態",
+    "cooldown_reset_title": "清除憑證冷卻？",
+    "cooldown_reset_confirm": "確定清除「{{name}}」的本機路由冷卻狀態嗎？清除後此憑證可能立即再次參與請求，但不會恢復上游額度。",
+    "cooldown_reset_success": "已清除 {{name}} 的冷卻狀態。",
+    "cooldown_reset_failed": "無法清除 {{name}} 的冷卻狀態：{{message}}",
     "cooldown_reason_quota": "額度限制",
     "cooldown_reason_credential_quota": "憑證額度限制",
     "cooldown_reason_cloudflare_challenge": "Cloudflare 驗證",
@@ -917,6 +924,26 @@
     "no_requests": "無請求"
   },
   "logs": {
+    "preview_too_large": "封包超過 2 MiB 預覽限制，請下載查看",
+    "read_status_live": "持續讀取",
+    "read_status_paused": "讀取已暫停",
+    "read_status_catching_up": "正在追趕積壓記錄",
+    "last_updated": "最後成功更新：{{time}}",
+    "buffer_scope": "僅搜尋已載入記錄：快取 {{count}} 行，符合 {{matched}} 行",
+    "buffer_evicted": "較早記錄已移出快取，無法在此檢索",
+    "cursor_reset_notice": "記錄已輪替或重設，已重新載入最新內容",
+    "history_evicted": "閱讀位置已移出快取，請重新定位",
+    "resume_following": "回到最新 · 新增 {{count}} 行",
+    "level_filter": "記錄等級",
+    "all_levels": "全部等級",
+    "view_request": "查看請求 {{id}} 的封包",
+    "copy_line": "複製此行",
+    "request_log_missing": "未找到封包：可能未記錄或已被清理。關閉請求記錄時通常僅保留錯誤封包。",
+    "download_cached": "下載已快取記錄",
+    "clear_application_confirm": "清空伺服器上的應用程式記錄？請求封包檔案不會被刪除，此操作無法復原。",
+    "clear_search": "清除搜尋",
+    "reading_enabled": "持續讀取",
+    "filter_load_more": "展開更多符合的記錄",
     "title": "記錄檢視",
     "refresh_button": "重新整理記錄",
     "clear_button": "清空記錄",
@@ -963,7 +990,8 @@
     "show_raw_logs": "顯示原始記錄",
     "show_raw_logs_hint": "直接顯示原始記錄文字，方便多行複製",
     "search_placeholder": "搜尋記錄內容或關鍵字",
-    "filter_panel_title": "結構化篩選",
+    "filter_panel_title": "篩選與顯示",
+    "wrap_lines": "長日誌自動換行",
     "filter_panel_expand": "展開結構化篩選",
     "filter_panel_collapse": "收起結構化篩選",
     "filter_panel_active_count": "已選 {{count}} 項",
@@ -1020,6 +1048,10 @@
     "validation_blocked_short": "待修復",
     "visual_mode_unavailable_detail": "目前設定存在無效 YAML，暫時無法使用視覺化編輯：{{message}}",
     "visual_mode_save_blocked": "請先修復 YAML 語法錯誤，再從視覺化模式儲存",
+    "source_changes_before_visual": "原始碼有未儲存的修改，請先儲存或放棄修改，再切換到視覺化模式。",
+    "precise_save_incomplete": "精準儲存未完成，部分修改可能已生效。草稿已保留，請再次儲存以重新核對伺服器差異。",
+    "concurrent_list_conflict": "伺服器清單 {{path}} 已在草稿基準之後發生變更。為避免覆蓋這些修改，已阻止儲存。草稿仍保留；請記下本機修改，再重新載入設定並核對合併。",
+    "precise_save_recovery_required": "無法回讀儲存結果，已暫停編輯。請再次儲存以恢復草稿基準，或重新載入設定。",
     "visual_mode_latest_yaml_invalid": "伺服器最新設定包含無效 YAML，請先切回原始碼模式檢查後再儲存視覺化修改：{{message}}",
     "editor_placeholder": "key: value",
     "search_placeholder": "搜尋設定內容...",
@@ -1084,7 +1116,7 @@
           "panel_repo": "面板儲存庫"
         },
         "auth": {
-          "auth_dir": "驗證檔案目錄（auth-dir）",
+          "auth_dir": "OAuth 驗證檔案目錄（oauth.auth-dir）",
           "auth_dir_hint": "存放驗證檔案的目錄路徑（支援 ~）"
         },
         "system": {
@@ -1133,12 +1165,12 @@
           "redis_usage_retention_hint": "RESP 介面 LPOP/RPOP 用量佇列的記憶體保留時間，最大 3600 秒",
           "antigravity_sensitive_words": "敏感詞混淆",
           "antigravity_sensitive_words_desc": "在 Antigravity 系統提示詞的匹配項中插入零寬字元，降低上游精確關鍵詞匹配",
-          "antigravity_sensitive_words_label": "敏感詞（antigravity.sensitive-words）",
+          "antigravity_sensitive_words_label": "OAuth 敏感詞（oauth.providers.antigravity.sensitive-words）",
           "antigravity_sensitive_words_placeholder": "proxy",
           "antigravity_sensitive_words_hint": "每項填寫一個詞或短語；匹配不分大小寫，儲存時移除空項，少於 2 個字元的項目會被後端忽略",
           "devin_sensitive_words": "Devin 系統提示詞敏感詞",
           "devin_sensitive_words_desc": "僅處理 Devin 系統提示詞：含設定詞的整行會被刪除，剩餘系統提示詞再進行混淆；一般訊息和工具參數不會被修改",
-          "devin_sensitive_words_label": "敏感詞（devin.sensitive-words）",
+          "devin_sensitive_words_label": "OAuth 敏感詞（oauth.providers.devin.sensitive-words）",
           "devin_sensitive_words_placeholder": "敏感短語",
           "devin_sensitive_words_hint": "每項填寫一個詞或短語。請謹慎設定：命中內容會導致整行系統提示詞被刪除；儲存時移除空項",
           "antigravity_signature_cache": "啟用 Antigravity 簽名快取",
@@ -1149,8 +1181,8 @@
         "headers": {
           "title": "Header 預設值",
           "description": "Claude 與 Codex OAuth 請求在客戶端缺少 Header 時使用的預設值",
-          "claude_title": "Claude Header Defaults",
-          "codex_title": "Codex Header Defaults",
+          "claude_title": "Claude OAuth 預設請求標頭",
+          "codex_title": "Codex OAuth 預設請求標頭",
           "user_agent": "User-Agent",
           "package_version": "Package Version",
           "runtime_version": "Runtime Version",
@@ -1195,7 +1227,7 @@
           "disable_cooling_desc": "全域停用驗證/模型失敗後的冷卻視窗",
           "session_affinity": "會話黏性路由",
           "ws_auth": "WebSocket 驗證",
-          "ws_auth_desc": "啟用 WebSocket 連線驗證（/v1/ws）"
+          "ws_auth_desc": "啟用 AI Studio WebSocket 連線驗證（oauth.providers.aistudio.ws-auth）"
         },
         "quota": {
           "title": "配額回退",
@@ -1233,7 +1265,7 @@
         }
       },
       "api_keys": {
-        "label": "API 金鑰清單（api-keys）",
+        "label": "用戶端 API 金鑰（access.api-keys）",
         "add": "新增 API 金鑰",
         "generate": "產生",
         "empty": "暫無 API 金鑰",
@@ -1242,7 +1274,7 @@
         "add_title": "新增 API 金鑰",
         "input_label": "API 金鑰",
         "input_placeholder": "貼上你的 API 金鑰",
-        "input_hint": "此處僅修改本地設定檔內容，不會自動同步到 API 金鑰管理介面",
+        "input_hint": "儲存設定後生效。上游提供商金鑰獨立管理，不受此處修改影響。",
         "error_empty": "請輸入 API 金鑰",
         "error_invalid": "API 金鑰包含無效字元",
         "strength": {
@@ -1612,6 +1644,9 @@
     "version": "管理中心版本"
   },
   "providersPage": {
+    "groups": {
+      "rowHint": "未修改的欄位保留組繼承。修改基礎 URL 將影響組內所有金鑰。新增行會建立新組。"
+    },
     "header": {
       "title": "AI 提供商",
       "activeResources": "{{active}}/{{total}} 個活躍資源",

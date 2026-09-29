@@ -65,7 +65,7 @@
     "subtitle": "管理中心"
   },
   "login": {
-    "subtitle": "请输入连接信息以访问管理界面",
+    "subtitle": "连接 CLI Proxy API v8 或更高版本",
     "connection_current": "当前地址",
     "connection_auto_hint": "系统将自动使用当前访问地址进行连接",
     "custom_connection_label": "自定义连接地址:",
@@ -83,7 +83,8 @@
     "error_timeout": "连接超时，服务器无响应",
     "error_unauthorized": "认证失败，管理密钥缺失或无效",
     "error_forbidden": "访问被拒绝，远程管理未启用、管理密钥未配置或 IP 被临时封禁",
-    "error_not_found": "未找到 Management API，请确认服务地址指向 CLIProxyAPI 后端",
+    "error_not_found": "未找到 v8 Management API，请检查服务地址并将 CLIProxyAPI 升级至 v8 或更高版本；不再支持 v0 接口。",
+    "error_legacy_backend": "当前后端可使用 v0 管理接口，但不支持 v8。请将 CLIProxyAPI 升级至 v8 或更高版本后再使用此管理页面。",
     "error_server": "后端处理管理接口时发生错误，请查看服务日志",
     "error_cors": "跨域请求被阻止，请检查服务器配置",
     "error_ssl": "SSL/TLS 证书验证失败"
@@ -251,6 +252,12 @@
     "cooldown_deadline": "计时截止",
     "cooldown_observed": "快照时间",
     "cooldown_note": "本地调度快照，剩余时间为估算；到期不代表凭证可用、额度恢复或自动重试。模型名称为内部状态键，退避等级不是失败次数。",
+    "cooldown_reset_button": "清除冷却",
+    "cooldown_reset_hint": "清除此凭证的本地路由冷却状态",
+    "cooldown_reset_title": "清除凭证冷却？",
+    "cooldown_reset_confirm": "确定清除“{{name}}”的本地路由冷却状态吗？清除后此凭证可能立即再次参与请求，但不会恢复上游额度。",
+    "cooldown_reset_success": "已清除 {{name}} 的冷却状态。",
+    "cooldown_reset_failed": "无法清除 {{name}} 的冷却状态：{{message}}",
     "cooldown_reason_quota": "额度限制",
     "cooldown_reason_credential_quota": "凭证额度限制",
     "cooldown_reason_cloudflare_challenge": "Cloudflare 验证",
@@ -891,6 +898,26 @@
     "no_requests": "无请求"
   },
   "logs": {
+    "preview_too_large": "报文超过 2 MiB 预览限制，请下载查看",
+    "read_status_live": "持续读取",
+    "read_status_paused": "读取已暂停",
+    "read_status_catching_up": "正在追赶积压日志",
+    "last_updated": "最后成功更新：{{time}}",
+    "buffer_scope": "仅搜索已加载日志：缓存 {{count}} 行，匹配 {{matched}} 行",
+    "buffer_evicted": "较早日志已移出缓存，无法在此检索",
+    "cursor_reset_notice": "日志已轮转或重置，已重新载入最新内容",
+    "history_evicted": "阅读位置已移出缓存，请重新定位",
+    "resume_following": "回到最新 · 新增 {{count}} 行",
+    "level_filter": "日志等级",
+    "all_levels": "全部等级",
+    "view_request": "查看请求 {{id}} 的报文",
+    "copy_line": "复制此行",
+    "request_log_missing": "未找到报文：可能未记录或已被清理。关闭请求日志时通常仅保留错误报文。",
+    "download_cached": "下载已缓存日志",
+    "clear_application_confirm": "清空服务器上的应用日志？请求报文文件不会被删除，此操作不可撤销。",
+    "clear_search": "清除搜索",
+    "reading_enabled": "持续读取",
+    "filter_load_more": "展开更多匹配日志",
     "title": "日志查看",
     "refresh_button": "刷新日志",
     "clear_button": "清空日志",
@@ -937,7 +964,8 @@
     "show_raw_logs": "显示原始日志",
     "show_raw_logs_hint": "直接显示原始日志文本，方便多行复制",
     "search_placeholder": "搜索日志内容或关键字",
-    "filter_panel_title": "结构化筛选",
+    "filter_panel_title": "筛选与显示",
+    "wrap_lines": "长日志自动换行",
     "filter_panel_expand": "展开结构化筛选",
     "filter_panel_collapse": "收起结构化筛选",
     "filter_panel_active_count": "已选 {{count}} 项",
@@ -994,6 +1022,10 @@
     "validation_blocked_short": "待修复",
     "visual_mode_unavailable_detail": "当前配置存在无效 YAML，暂时无法使用可视化编辑：{{message}}",
     "visual_mode_save_blocked": "请先修复 YAML 语法错误，再从可视化模式保存",
+    "source_changes_before_visual": "源码有未保存的修改，请先保存或放弃修改，再切换到可视化模式。",
+    "precise_save_incomplete": "精准保存未完成，部分修改可能已生效。草稿已保留，请再次保存以重新核对服务端差异。",
+    "concurrent_list_conflict": "服务端列表 {{path}} 已在草稿基线之后发生变更。为避免覆盖这些修改，已阻止保存。草稿仍保留；请记下本地修改，再重新加载配置并核对合并。",
+    "precise_save_recovery_required": "无法回读保存结果，已暂停编辑。请再次保存以恢复草稿基线，或重新加载配置。",
     "visual_mode_latest_yaml_invalid": "服务端最新配置包含无效 YAML，请先切回源码模式检查后再保存可视化修改：{{message}}",
     "editor_placeholder": "key: value",
     "search_placeholder": "搜索配置内容...",
@@ -1058,7 +1090,7 @@
           "panel_repo": "面板仓库"
         },
         "auth": {
-          "auth_dir": "认证文件目录 (auth-dir)",
+          "auth_dir": "OAuth 认证文件目录 (oauth.auth-dir)",
           "auth_dir_hint": "存放认证文件的目录路径（支持 ~）"
         },
         "system": {
@@ -1107,12 +1139,12 @@
           "redis_usage_retention_hint": "RESP 接口 LPOP/RPOP 用量队列的内存保留时间，最大 3600 秒",
           "antigravity_sensitive_words": "敏感词混淆",
           "antigravity_sensitive_words_desc": "在 Antigravity 系统提示词匹配项中插入零宽字符，降低上游精确关键词匹配",
-          "antigravity_sensitive_words_label": "敏感词（antigravity.sensitive-words）",
+          "antigravity_sensitive_words_label": "OAuth 敏感词（oauth.providers.antigravity.sensitive-words）",
           "antigravity_sensitive_words_placeholder": "proxy",
           "antigravity_sensitive_words_hint": "每项填写一个词或短语；匹配不区分大小写，保存时移除空项，少于 2 个字符的项会被后端忽略",
           "devin_sensitive_words": "Devin 系统提示词敏感词",
           "devin_sensitive_words_desc": "仅处理 Devin 系统提示词：含配置词的整行会被删除，剩余系统提示词再进行混淆；普通消息和工具参数不会被修改",
-          "devin_sensitive_words_label": "敏感词（devin.sensitive-words）",
+          "devin_sensitive_words_label": "OAuth 敏感词（oauth.providers.devin.sensitive-words）",
           "devin_sensitive_words_placeholder": "敏感短语",
           "devin_sensitive_words_hint": "每项填写一个词或短语。请谨慎配置：命中内容会导致整行系统提示词被删除；保存时移除空项",
           "antigravity_signature_cache": "启用 Antigravity 签名缓存",
@@ -1123,8 +1155,8 @@
         "headers": {
           "title": "Header 默认值",
           "description": "Claude 与 Codex OAuth 请求在客户端缺少 Header 时使用的默认值",
-          "claude_title": "Claude Header Defaults",
-          "codex_title": "Codex Header Defaults",
+          "claude_title": "Claude OAuth 默认请求头",
+          "codex_title": "Codex OAuth 默认请求头",
           "user_agent": "User-Agent",
           "package_version": "Package Version",
           "runtime_version": "Runtime Version",
@@ -1169,7 +1201,7 @@
           "disable_cooling_desc": "全局禁用认证/模型失败后的冷却窗口",
           "session_affinity": "会话粘性路由",
           "ws_auth": "WebSocket 认证",
-          "ws_auth_desc": "启用 WebSocket 连接认证 (/v1/ws)"
+          "ws_auth_desc": "启用 AI Studio WebSocket 连接认证（oauth.providers.aistudio.ws-auth）"
         },
         "quota": {
           "title": "配额回退",
@@ -1207,7 +1239,7 @@
         }
       },
       "api_keys": {
-        "label": "API 密钥列表 (api-keys)",
+        "label": "客户端 API 密钥 (access.api-keys)",
         "add": "添加 API 密钥",
         "generate": "生成",
         "empty": "暂无 API 密钥",
@@ -1216,7 +1248,7 @@
         "add_title": "添加 API 密钥",
         "input_label": "API 密钥",
         "input_placeholder": "粘贴你的 API 密钥",
-        "input_hint": "此处仅修改本地配置文件内容，不会自动同步到 API 密钥管理接口",
+        "input_hint": "保存配置后生效。上游提供商密钥独立管理，不受此处修改影响。",
         "error_empty": "请输入 API 密钥",
         "error_invalid": "API 密钥包含无效字符",
         "strength": {
@@ -1586,6 +1618,9 @@
     "version": "管理中心版本"
   },
   "providersPage": {
+    "groups": {
+      "rowHint": "未修改的字段保留组继承。修改基础 URL 将影响组内所有密钥。新建行会创建新组。"
+    },
     "header": {
       "title": "AI 提供商",
       "activeResources": "{{active}}/{{total}} 个活跃资源",
