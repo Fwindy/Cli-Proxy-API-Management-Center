@@ -9,6 +9,9 @@
 >
 > 如需使用本 fork 的「监控中心」完整功能，必须搭配本 fork 适配的插件：
 > https://github.com/Fwindy/cpa-usage-statistics
+>
+> CPA v8 的核心管理 API 使用 `/v8/management`，但插件自定义 HTTP 接口仍使用 `/v0/management`。
+> 统计查询和删除请求应访问 `/v0/management/plugins/usage-statistics/usage`，不要随核心 API 一起切换到 v8。
 
 本 README 只记录 **本 fork 相对上游新增/增强的功能点**。
 

@@ -22,6 +22,7 @@ import {
   collectUsageDetails,
   extractFirstByteLatencyMs,
   extractGenerationMs,
+  extractLatencyMs,
   extractTotalTokens,
   formatDurationMs,
   normalizeAuthIndex,
@@ -370,7 +371,8 @@ export function RequestEventsDetailsCard({
       const backendId = typeof detail.id === 'string' && detail.id.trim() ? detail.id.trim() : null;
       const firstByteLatencyMs = extractFirstByteLatencyMs(detail);
       const generationMs = extractGenerationMs(detail);
-      const tps = generationMs && generationMs > 0 ? outputTokens / (generationMs / 1000) : null;
+      const latencyMs = extractLatencyMs(detail);
+      const tps = latencyMs && latencyMs > 0 ? outputTokens / (latencyMs / 1000) : null;
       const thinking = detail.thinking ?? null;
       const thinkingEffort = normalizeThinkingText(detail.reasoning_effort);
       const thinkingLabel = thinkingEffort || formatThinkingLabel(thinking);

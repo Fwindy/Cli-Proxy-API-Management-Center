@@ -1621,11 +1621,10 @@ export function getModelStats(
           const detailRecord = isRecord(detail) ? detail : null;
           const latencyMs = extractLatencyMs(detailRecord);
           const firstByteLatencyMs = extractFirstByteLatencyMs(detailRecord);
-          const generationMs = extractGenerationMs(detailRecord);
           const tokens = isRecord(detailRecord?.tokens) ? detailRecord.tokens : null;
           const outputTokensRaw = Number(tokens?.output_tokens);
           const outputTokens = Number.isFinite(outputTokensRaw) ? Math.max(outputTokensRaw, 0) : 0;
-          const tps = generationMs && generationMs > 0 ? outputTokens / (generationMs / 1000) : null;
+          const tps = latencyMs && latencyMs > 0 ? outputTokens / (latencyMs / 1000) : null;
           if (!hasExplicitCounts) {
             if (detailRecord?.failed === true) {
               existing.failureCount += 1;

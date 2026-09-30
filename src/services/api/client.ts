@@ -15,6 +15,7 @@ import {
 } from '@/utils/constants';
 import { computeApiUrl } from '@/utils/connection';
 import { parseApiErrorResponse } from './apiError';
+import { resolveUsagePluginUrl } from './usagePluginRoute';
 
 class ApiClient {
   private instance: AxiosInstance;
@@ -116,6 +117,7 @@ class ApiClient {
       (config) => {
         // 设置 baseURL
         config.baseURL = this.apiBase;
+        config.url = resolveUsagePluginUrl(config.url, this.apiBase);
 
         // 添加认证头
         if (this.managementKey) {
