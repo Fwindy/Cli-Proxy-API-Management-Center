@@ -275,6 +275,14 @@
     "health_status_warning": "Warning",
     "health_status_disabled": "Disabled",
     "download_button": "Download",
+    "refresh_all_button": "Refresh all credentials",
+    "refresh_all_confirm": "Refresh all eligible credentials on the server, not just the current filtered results. The backend skips disabled or ineligible credentials. This does not reload the list or reset quotas and may take several minutes. Continue?",
+    "refresh_all_results": "Credential refresh results",
+    "refresh_all_summary": "{{success}} refreshed, {{failed}} failed.",
+    "refresh_all_empty": "No credentials were eligible for refresh.",
+    "refresh_all_failed": "Could not obtain complete refresh results: {{message}}. Some credentials may already have refreshed. Check the list before retrying.",
+    "refresh_result_success": "Refreshed",
+    "refresh_result_failed": "Refresh failed",
     "manual_refresh_button": "Refresh OAuth credential",
     "manual_refresh_requested": "Credential refresh requested for \"{{name}}\"",
     "manual_refresh_failed": "Failed to request credential refresh for \"{{name}}\": {{message}}",
@@ -309,8 +317,8 @@
     "pagination_prev": "Previous",
     "pagination_next": "Next",
     "pagination_info": "Page {{current}} / {{total}} · {{count}} files",
-    "search_label": "Search configs",
-    "search_placeholder": "Filter by name, account, type, or provider. Use * as a wildcard",
+    "search_label": "Search credentials by name, account, type, provider, or error message",
+    "search_placeholder": "Search name, account, type, provider, or error (403, 429, invalid). Use * as a wildcard",
     "problem_filter_label": "Status Filter",
     "problem_filter_all": "All",
     "problem_filter_enabled": "Enabled",
@@ -391,6 +399,24 @@
     "websockets_hint": "Enable Responses API websocket transport for this credential.",
     "using_api_label": "Use official API (using_api)",
     "using_api_hint": "Use the official xAI API when enabled; use Grok CLI chat-proxy when disabled.",
+    "policy_alias_name": "Alias",
+    "policy_alias_display_name": "Display name",
+    "policy_alias_fork": "Keep the original model in listings",
+    "policy_alias_force_mapping": "Rewrite response model to the alias",
+    "policy_unsupported": "Existing data cannot be edited with this form and will be preserved. Select Inherit to clear it, or replace it to start a new list.",
+    "policy_replace": "Replace existing data",
+    "policy_retry_label": "Credential request retries",
+    "policy_inherit": "Inherit",
+    "policy_custom": "Custom",
+    "policy_retry_count": "Retry count",
+    "policy_retry_hint": "Inherit uses the global request-retry setting. Custom 0 explicitly disables request retries for this credential.",
+    "policy_aliases_label": "Account model aliases",
+    "policy_aliases_hint": "Account aliases are checked first; unmatched aliases fall back to channel aliases. Inherit or an empty list clears only account aliases.",
+    "policy_rules_label": "Account error rules",
+    "policy_rules_hint": "Custom rules take precedence in list order. Inherit or an empty list uses inherited rules; it does not disable them. Regex patterns use Go syntax.",
+    "policy_retry_invalid": "Enter a non-negative safe integer, or select Inherit.",
+    "policy_aliases_invalid": "Enter a non-empty model name and alias for each new or edited row.",
+    "policy_rules_invalid": "Complete each edited rule with a positive status, an action and at least one non-empty match condition.",
     "note_label": "Note",
     "note_placeholder": "Enter a note, e.g.: John's account",
     "note_hint": "Optional. Used to describe the purpose or owner of this credential; leave empty to omit.",
@@ -498,6 +524,8 @@
     "additional_team_secondary_window": "{{name}} monthly limit",
     "plan_label": "Plan",
     "expires_label": "Renewal time",
+    "credit_balance_label": "Credit balance",
+    "credit_unlimited": "Unlimited",
     "reset_credits_label": "Manual resets",
     "reset_credits_expiry_label": "Manual reset expiry ({{timezone}})",
     "reset_credit_number": "Reset {{index}}",
@@ -563,6 +591,8 @@
     "title": "Kimi Quota",
     "empty_title": "No Kimi Auth Files",
     "empty_desc": "Upload a Kimi credential to view remaining quota.",
+    "domain_unavailable": "Could not read the Kimi credential's domain. A downloadable, valid authentication file is required.",
+    "stale_request": "The connection or credential changed. Please retry.",
     "idle": "Click here to refresh quota",
     "loading": "Loading quota...",
     "load_failed": "Failed to load quota: {{message}}",
@@ -571,6 +601,7 @@
     "refresh_button": "Refresh Quota",
     "fetch_all": "Fetch All",
     "weekly_limit": "Weekly limit",
+    "monthly_limit": "Monthly limit",
     "limit_window": "{{duration}} limit",
     "limit_index": "Limit #{{index}}",
     "reset_hint": "resets in {{hint}}"
@@ -593,6 +624,8 @@
     "reset_at": "Resets {{time}}",
     "product_usage": "{{product}} usage",
     "plan_label": "Plan",
+    "resets_label": "Resets",
+    "prepaid": "Prepaid",
     "plan_supergrok": "SuperGrok",
     "plan_supergrok_heavy": "SuperGrok Heavy",
     "plan_paid": "Paid",
@@ -1041,6 +1074,166 @@
       "no_changes": "No changes detected"
     },
     "visual": {
+      "serverExtras": {
+        "trustedProxies": {
+          "label": "Trusted proxies",
+          "hint": "IP addresses or CIDRs; empty means forwarded headers are not trusted. Trusting all-address ranges risks client IP spoofing. Requires a backend restart."
+        },
+        "discoveryEnabled": {
+          "label": "Enable discovery",
+          "hint": "Broadcast via mDNS / DNS-SD on the LAN. Off by default; changes apply without a restart."
+        },
+        "discoveryServiceName": {
+          "label": "Service name prefix",
+          "hint": "The backend appends a short ID. Empty uses CPA-<ShortID>."
+        },
+        "discoveryServiceType": {
+          "label": "Service type",
+          "hint": "Empty uses _ai-gateway._tcp."
+        },
+        "discoverySubtypes": {
+          "label": "Protocol subtypes",
+          "hint": "Empty uses the five default protocols. Missing leading _ is added; invalid entries are ignored."
+        },
+        "discoveryInterfacesInclude": {
+          "label": "Include interfaces",
+          "hint": "Empty auto-selects physical LAN interfaces. Use names or prefix patterns ending in *."
+        },
+        "discoveryInterfacesExclude": {
+          "label": "Exclude interfaces",
+          "hint": "Use names or prefix patterns ending in *. Exclusions take priority over inclusions."
+        },
+        "discoveryAuthRequired": {
+          "label": "Advertise authentication requirement",
+          "hint": "On by default. Broadcast metadata only; does not change actual API authentication."
+        },
+        "discoveryAdvertiseManagement": {
+          "label": "Advertise management service",
+          "hint": "Off by default. Only announces the management service exists; does not change remote access permissions."
+        },
+        "discoveryTitle": "LAN discovery",
+        "discoveryHint": "Requires multicast-capable physical interfaces and a non-loopback listener. Docker usually needs host networking; reachability is not guaranteed."
+      },
+      "additions": {
+        "oauthTitle": "OAuth provider behavior",
+        "oauthHint": "These provider settings apply only to OAuth/file-backed credentials, not API-key credentials.",
+        "claudeTitle": "Claude",
+        "codexTitle": "Codex",
+        "antigravityTitle": "Antigravity",
+        "xaiTitle": "xAI",
+        "liveRelayTitle": "Codex Live media relay",
+        "liveRelayHint": "Relay WebRTC audio and DataChannel traffic in the proxy process. Inbound UDP must be reachable. Keep ICE credentials out of screenshots and logs.",
+        "iceAdd": "Add ICE server",
+        "iceRemove": "Remove ICE server {{index}}",
+        "iceURLs": "STUN/TURN URLs",
+        "iceUsername": "TURN username",
+        "iceCredential": "TURN password",
+        "iceServer": "ICE server {{index}}",
+        "routingSessionAffinitySubagents": {
+          "label": "Subagent session affinity",
+          "hint": "Enabled by default; only effective when session affinity is enabled. Subagents inherit their parent's credential to reuse caches. Disable to distribute subagents across the credential pool for greater concurrency."
+        },
+        "saveCooldownStatus": {
+          "label": "Persist cooldown status",
+          "hint": "Save per-credential cooldown status in .cds files beside auth files. Disabled by default; otherwise status is kept only in memory."
+        },
+        "transientErrorCooldownSeconds": {
+          "label": "Transient error cooldown (seconds)",
+          "hint": "Cooldown for upstream 408/500/502/503/504/520–526 errors. 0 uses the default 60 seconds; a negative value disables this cooldown."
+        },
+        "videoResultAuthCacheTTL": {
+          "label": "Video result credential cache TTL",
+          "hint": "How long video IDs remain bound to the credential that created them. Use a duration such as 30m or 3h; default: 3h."
+        },
+        "claudeHeaderTimezone": {
+          "label": "Fallback timezone",
+          "hint": "IANA timezone for the cloaked currentDate, e.g. Asia/Singapore, or Local for the backend host's timezone. The credential JSON's timezone takes priority."
+        },
+        "claudeModelLevelCooling": {
+          "label": "Model-level cooldown",
+          "hint": "Apply Claude quota cooldowns only to the requested model, rather than all models sharing the credential. Disabled by default."
+        },
+        "claudeDisableCloakMode": {
+          "label": "Disable request cloaking",
+          "hint": "Disable the Claude Code CLI disguise and system prompt replacement; pass through the original system prompt. Credential files can override this with cloak_mode. Default: false (automatic cloaking for non-Claude-Code clients)."
+        },
+        "claudeCodeDisableCloakingModelList": {
+          "label": "Disable model ID cloaking",
+          "hint": "Return original model IDs in Anthropic model list responses instead of cloaked IDs. Disabled by default."
+        },
+        "codexDisableCloaking": {
+          "label": "Disable request cloaking",
+          "hint": "Stop forcing official Codex User-Agent and Originator headers on HTTP/SSE and WebSocket requests. Disabled by default."
+        },
+        "codexModelLevelCooling": {
+          "label": "Model-level cooldown",
+          "hint": "Apply usage_limit_reached quota cooldowns only to the requested model, rather than all models sharing the credential. Disabled by default."
+        },
+        "codexStreamBootstrapBuffering": {
+          "label": "Buffer stream bootstrap",
+          "hint": "Hold initial empty events and heartbeats to allow credential failover on early overload or rate-limit rejections. Disabled by default. Delays response headers and may trigger client or reverse-proxy timeouts; buffering has frame and byte budgets."
+        },
+        "codexStreamBootstrapTimeout": {
+          "label": "Stream bootstrap timeout",
+          "hint": "Optional buffering time limit, e.g. 20s. Default: 0 (unlimited time; frame and byte budgets still apply). Checked as upstream frames arrive; not a hard deadline for every network stall. Headers may still wait for translated output."
+        },
+        "codexOptimizeMultiAgentV2": {
+          "label": "Optimize multi-agent v2",
+          "hint": "Optimize official Codex multi-agent requests: refresh spawn_agent model details, remove message parameter encryption, normalize agent_message content, and convert it to user messages for non-Codex protocols. Disabled by default."
+        },
+        "codexOrphanDelegationCompatibility": {
+          "label": "Orphan delegation compatibility",
+          "hint": "For X-Openai-Subagent: collab_spawn requests, convert orphan codex_app/create_thread and codex_app/send_message_to_thread outputs without a valid matching call into user messages. Disabled by default."
+        },
+        "codexResponseSteering": {
+          "label": "Response steering",
+          "hint": "Experimental full-duplex Codex Responses WebSockets. Each socket stays bound to one upstream account and model; accepted input is never replayed. Disabled by default."
+        },
+        "antigravityConnectionPoolEnabled": {
+          "label": "Enable connection pooling",
+          "hint": "Reuse upstream HTTP/1.1 connections. Default: false (short-lived connections)."
+        },
+        "antigravityConnectionPoolIdleTimeout": {
+          "label": "Idle connection timeout",
+          "hint": "How long idle connections remain in the pool. Default: 30s; capped at 210s. Zero or a negative duration switches to short-lived connections."
+        },
+        "antigravityConnectionPoolMaxIdleConnsPerHost": {
+          "label": "Maximum idle connections per host",
+          "hint": "Maximum idle connections retained per upstream host per credential. Default: 2; capped at 100. Zero uses Go's default of 2; a negative value switches to short-lived connections."
+        },
+        "xaiInjectXSearch": {
+          "label": "Inject x_search",
+          "hint": "Add xAI's native x_search tool when absent from the request, including tool_choice.allowed_tools when applicable. Disabled by default."
+        },
+        "codexLiveMediaRelayEnabled": {
+          "label": "Enable media relay",
+          "hint": "Terminate and relay Codex Live WebRTC media in this process. Requires inbound UDP reachability. Disabled by default to preserve direct media connections."
+        },
+        "codexLiveMediaRelayMaxSessions": {
+          "label": "Maximum concurrent media sessions",
+          "hint": "Blank or 0 uses the default of 32 sessions. A custom UDP range must provide at least two ports per session."
+        },
+        "codexLiveMediaRelayDisablePrivateRemoteIPs": {
+          "label": "Block private remote IP candidates",
+          "hint": "Default: false, allowing private candidates for local or trusted-network clients. Enable to reject downstream SDP candidates targeting private, loopback, link-local, or unspecified IPs and reduce internal-network exposure; local connections may fail."
+        },
+        "codexLiveMediaRelayPublicIP": {
+          "label": "Advertised public IP",
+          "hint": "Optional public IPv4 or IPv6 address to advertise when the proxy is behind 1:1 NAT. Enter an IP address, not a hostname."
+        },
+        "codexLiveMediaRelayUDPPortMin": {
+          "label": "Minimum UDP port",
+          "hint": "Set both UDP bounds to 0 for system allocation, or specify an inclusive continuous range with at least twice the effective session limit in ports."
+        },
+        "codexLiveMediaRelayUDPPortMax": {
+          "label": "Maximum UDP port",
+          "hint": "Must be at least the minimum port. Both bounds must be 0 or both nonzero; a custom range needs at least two ports per session (64 with the default 32 sessions)."
+        },
+        "codexLiveMediaRelayICEServers": {
+          "label": "ICE servers",
+          "hint": "Optional STUN/TURN servers using stun:, stuns:, turn:, or turns: URLs. TURN credentials are omitted from the JSON config API. Enter the credential as a password and keep secrets out of screenshots and logs."
+        }
+      },
       "search": {
         "placeholder": "Search settings (label or YAML key)",
         "no_results": "No matching settings"
@@ -1250,6 +1443,10 @@
         "add_title": "Add API Key",
         "input_label": "API Key",
         "input_placeholder": "Paste your API key",
+        "name_label": "Name / description (optional)",
+        "name_placeholder": "For example: Alice's laptop",
+        "name_hint": "Saved immediately in this browser only, separately for each server. Not included in server configuration. Clear this field to remove the name.",
+        "name_save_error": "Could not save the name in browser storage. Check your browser storage settings.",
         "input_hint": "Changes take effect after saving the configuration. Upstream provider keys are managed separately.",
         "error_empty": "Please enter an API key",
         "error_invalid": "API key contains invalid characters",
@@ -1313,7 +1510,17 @@
         "boolean_false": "false"
       },
       "validation": {
+        "invalid_trusted_proxies": "Each trusted proxy must be a valid IP address or CIDR.",
+        "invalid_discovery_service_type": "Use _name._tcp: name must be 1–15 letters, digits or hyphens, with no leading or trailing hyphen.",
         "validation_blocked": "Fix validation errors before saving",
+        "invalid_duration": "Enter a valid duration, such as 30s or 3h",
+        "positive_duration": "Enter a duration greater than zero",
+        "invalid_timezone": "Enter a valid IANA timezone, such as Asia/Singapore",
+        "invalid_ip": "Enter a valid IPv4 or IPv6 address",
+        "udp_port_pair": "Set both UDP ports to 0, or set both with the minimum not exceeding the maximum",
+        "udp_port_capacity": "The UDP range must contain at least twice the effective maximum session count in ports (0 sessions uses 32)",
+        "invalid_ice_servers": "Each ICE server needs at least one valid stun:, stuns:, turn:, or turns: URL",
+        "integer_range_0_65535": "Enter a whole number between 0 and 65535",
         "port_range": "Enter a valid port between 1 and 65535",
         "integer": "Enter a whole number",
         "non_negative_integer": "Enter a non-negative whole number",
@@ -1572,6 +1779,7 @@
     "clear_login_confirm": "Clear local login data and sign out now?"
   },
   "notification": {
+    "trusted_proxies_restart_required": "Trusted proxy settings saved. Restart the backend to apply them.",
     "region_label": "Notifications",
     "type_success": "Success",
     "type_info": "Information",
@@ -1620,8 +1828,89 @@
     "version": "Management UI Version"
   },
   "providersPage": {
-    "groups": {
-      "rowHint": "Unchanged fields keep their group inheritance. Base URL changes affect every key in this group. New rows create new groups."
+    "behavior": {
+      "title": "Provider-specific behavior",
+      "alphaSearch": "Enable Alpha Search",
+      "alphaSearchHint": "Allow this Codex key to serve Alpha Search. The upstream must support it.",
+      "codexCloaking": "Codex request cloaking",
+      "codexCloakingHint": "Override official Codex identity headers for this API key. Default removes the credential override; OAuth-only settings do not apply here.",
+      "useDefault": "Use backend default",
+      "cloakingEnabled": "Enable cloaking",
+      "cloakingDisabled": "Disable cloaking",
+      "rebuildMidSystemMessage": "Rebuild system messages",
+      "rebuildMidSystemMessageHint": "Move Claude messages with role system into the top-level system field.",
+      "supportPromptCacheKey": "Inject prompt cache key",
+      "supportPromptCacheKeyHint": "Derive and inject prompt_cache_key for compatible requests. Enable only when the upstream supports this field."
+    },
+    "modelOptions": {
+      "displayName": "Display name",
+      "maxContextLength": "Context length",
+      "contextHint": "Non-negative integer; leave empty to use the default.",
+      "forceMapping": "Rewrite response model to alias",
+      "isCompat": "Compatibility mode",
+      "supportConfigurationUpdate": "Allow configuration updates",
+      "inputModalitiesText": "Input modalities",
+      "outputModalitiesText": "Output modalities",
+      "modalitiesHint": "Separate values with commas or whitespace. Custom modality names are preserved.",
+      "useMaxCompletionTokens": "Use max_completion_tokens",
+      "thinkingMode": "Thinking override",
+      "useDefault": "Use default",
+      "custom": "Custom",
+      "thinkingHint": "Default inherits backend behavior; an empty custom override is an explicit {}. Budgets and effort levels can coexist. Only when both budgets are 0 or blank is the numeric range unspecified. Set a maximum at least as large as a positive minimum.",
+      "thinkingMin": "Minimum thinking budget",
+      "thinkingMax": "Maximum thinking budget",
+      "thinkingZeroAllowed": "Allow zero budget",
+      "thinkingDynamicAllowed": "Allow dynamic budget",
+      "invalidContext": "Context length must be a non-negative safe integer.",
+      "invalidThinking": "Thinking must be a valid JSON object.",
+      "invalidBudget": "Thinking budgets must be non-negative safe integers.",
+      "invalidRange": "Minimum thinking budget must not exceed the maximum. Blank bounds count as 0.",
+      "removeModel": "Remove model",
+      "modelName": "Model name",
+      "modelAlias": "Alias (optional)"
+    },
+    "runtimePolicy": {
+      "title": "Advanced runtime policy",
+      "description": "Inherit uses the parent group policy, then backend defaults. Overrides apply only to this entry.",
+      "cooling": "Cooling",
+      "inherit": "Inherit",
+      "coolingEnabled": "Enable cooling",
+      "coolingDisabled": "Disable cooling",
+      "retry": "Request retries",
+      "retryHint": "Blank inherits the group setting. Use an integer: 0 disables retries; a negative value uses the global retry policy instead of the group policy.",
+      "errorsMode": "Request error rules",
+      "override": "Override",
+      "errorsHint": "Inherit follows the parent policy. Override replaces the entire list, which may be empty. Switching modes keeps your rule draft.",
+      "invalidRetry": "Retries must be a safe integer, or blank to inherit."
+    },
+    "errorRules": {
+      "hint": "Use the first matching rule in order; for the same status code, any condition may match.",
+      "empty": "No rules. You can save an empty list.",
+      "rule": "Rule {{number}}",
+      "status": "Status code",
+      "action": "Action",
+      "selectAction": "Select an action",
+      "moveUp": "Move rule up",
+      "moveDown": "Move rule down",
+      "removeRule": "Delete rule",
+      "matchType": "Match type",
+      "text": "Contains text",
+      "regex": "Regular expression",
+      "matchValue": "Condition",
+      "regexHint": "Go regular expression",
+      "removeMatch": "Delete condition",
+      "addMatch": "Add condition",
+      "addRule": "Add rule",
+      "invalidStatus": "Status code must be a positive safe integer.",
+      "invalidAction": "Select a valid action.",
+      "invalidMatch": "Match conditions cannot be empty.",
+      "missingMatch": "Add at least one match condition.",
+      "actions": {
+        "stop": "Stop",
+        "stop-and-cooldown": "Stop and cool down",
+        "continue": "Continue",
+        "continue-and-cooldown": "Continue and cool down"
+      }
     },
     "header": {
       "title": "AI Providers",
@@ -1821,8 +2110,8 @@
       "proxyBadge": "Proxy",
       "modelBadgeImage": "Image",
       "modelBadgeThinking": "Thinking",
-      "thinkingConfig": "Allowed thinking levels",
-      "thinkingExistingHint": "The current backend config remains unchanged until you change a selection; then it will be replaced by the selected standard levels.",
+      "thinkingConfig": "Thinking capabilities",
+      "thinkingExistingHint": "Changes to effort levels preserve budgets and other untouched settings.",
       "thinkingLevels": {
         "none": "Disable thinking",
         "minimal": "Minimal",

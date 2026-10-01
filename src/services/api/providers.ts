@@ -3,6 +3,7 @@ import { apiClient } from './client';
 import { guardConfigConnection } from './configValue';
 import { isRecord } from '@/utils/helpers';
 import { normalizeApiKeyEntry, normalizeProviderGroups } from './transformers';
+import { serializeModelOptions } from './providerModels';
 import type {
   GeminiKeyConfig,
   OpenAIProviderConfig,
@@ -10,7 +11,7 @@ import type {
   ApiKeyEntry,
   ModelAlias,
 } from '@/types';
-import type { ProviderSource } from '@/types/provider';
+import type { ProviderSource, ProviderRuntimePolicy } from '@/types/provider';
 
 const serializeHeaders = (headers?: Record<string, string>) =>
   headers && Object.keys(headers).length ? headers : undefined;
@@ -19,7 +20,10 @@ const serializeModelAliases = (models?: ModelAlias[], includeOpenAIFields = fals
     ? models
         .map((model) => {
           if (!model?.name) return null;
-          const payload: Record<string, unknown> = { name: model.name };
+          const payload: Record<string, unknown> = {
+            name: model.name,
+            ...serializeModelOptions(model, includeOpenAIFields),
+          };
           if (model.alias) {
             payload.alias = model.alias;
           }
@@ -31,9 +35,6 @@ const serializeModelAliases = (models?: ModelAlias[], includeOpenAIFields = fals
           }
           if (includeOpenAIFields && model.image) {
             payload.image = true;
-          }
-          if (model.thinking) {
-            payload.thinking = model.thinking;
           }
           return payload;
         })
@@ -47,13 +48,57 @@ const serializeApiKeyEntry = (entry: ApiKeyEntry) => {
   return payload;
 };
 
-const serializeProviderKey = (config: ProviderKeyConfig) => {
-  const payload: Record<string, unknown> = { 'api-key': config.apiKey };
+const serializeRuntimePolicy = (config: ProviderRuntimePolicy, supportsErrors = true) => {
+  const payload: Record<string, unknown> = {};
+  if (config.requestRetry !== undefined) payload['request-retry'] = config.requestRetry;
+  if (supportsErrors && config.requestScopedErrors !== undefined) {
+    payload['request-scoped-errors'] = config.requestScopedErrors.map((rule) => ({
+      ...(rule.status !== undefined ? { status: rule.status } : {}),
+      ...(rule.match !== undefined ? { match: rule.match } : {}),
+      ...(rule.matchRegex !== undefined ? { 'match-regexr': rule.matchRegex } : {}),
+      ...(rule.action !== undefined ? { action: rule.action } : {}),
+    }));
+  }
+  return payload;
+};
+
+/** Restore parent inheritance without turning untouched nulls into persisted defaults. */
+const applyPolicyIntent = (
+  next: Record<string, unknown>,
+  raw: Record<string, unknown>,
+  config: ProviderRuntimePolicy,
+  after: Record<string, unknown>
+) => {
+  if (!config.inheritFields) return;
+  for (const field of ['disable-cooling', 'request-retry', 'request-scoped-errors'] as const) {
+    if (config.inheritFields.includes(field)) {
+      if (raw[field] === null) next[field] = null;
+      else delete next[field];
+    } else if (after[field] !== undefined && raw[field] == null) {
+      // An explicit override equal to the inherited effective value is still a change.
+      next[field] = after[field];
+    }
+  }
+};
+
+const serializeProviderKey = (config: ProviderKeyConfig, family: ProviderFamily) => {
+  const payload: Record<string, unknown> = {
+    'api-key': config.apiKey,
+    ...serializeRuntimePolicy(config),
+  };
   if (config.priority !== undefined) payload.priority = config.priority;
   if (config.weight !== undefined) payload.weight = config.weight;
   if (config.prefix?.trim()) payload.prefix = config.prefix.trim();
   if (config.baseUrl) payload['base-url'] = config.baseUrl;
   if (config.websockets !== undefined) payload.websockets = config.websockets;
+  if (family === 'codex') {
+    if (config.alphaSearch !== undefined) payload['alpha-search'] = config.alphaSearch;
+    if (config.disableCodexCloaking !== undefined)
+      payload['disable-codex-cloaking'] = config.disableCodexCloaking;
+  }
+  if (family === 'claude' && config.rebuildMidSystemMessage !== undefined) {
+    payload['rebuild-mid-system-message'] = config.rebuildMidSystemMessage;
+  }
   if (config.proxyUrl) payload['proxy-url'] = config.proxyUrl;
   if (config.disableCooling !== undefined) payload['disable-cooling'] = config.disableCooling;
   const headers = serializeHeaders(config.headers);
@@ -95,14 +140,18 @@ const serializeVertexModelAliases = (models?: ModelAlias[]) =>
           return {
             name,
             alias,
-            ...(model.thinking ? { thinking: model.thinking } : {}),
+            ...serializeModelOptions(model, false, true),
           };
         })
         .filter(Boolean)
     : undefined;
 
 const serializeVertexKey = (config: ProviderKeyConfig) => {
-  const payload: Record<string, unknown> = { 'api-key': config.apiKey };
+  const payload: Record<string, unknown> = {
+    'api-key': config.apiKey,
+    ...serializeRuntimePolicy(config, false),
+  };
+  if (config.disableCooling !== undefined) payload['disable-cooling'] = config.disableCooling;
   if (config.priority !== undefined) payload.priority = config.priority;
   if (config.weight !== undefined) payload.weight = config.weight;
   if (config.prefix?.trim()) payload.prefix = config.prefix.trim();
@@ -119,7 +168,10 @@ const serializeVertexKey = (config: ProviderKeyConfig) => {
 };
 
 const serializeGeminiKey = (config: GeminiKeyConfig) => {
-  const payload: Record<string, unknown> = { 'api-key': config.apiKey };
+  const payload: Record<string, unknown> = {
+    'api-key': config.apiKey,
+    ...serializeRuntimePolicy(config),
+  };
   if (config.priority !== undefined) payload.priority = config.priority;
   if (config.weight !== undefined) payload.weight = config.weight;
   if (config.prefix?.trim()) payload.prefix = config.prefix.trim();
@@ -140,12 +192,15 @@ const serializeOpenAIProvider = (provider: OpenAIProviderConfig) => {
   const payload: Record<string, unknown> = {
     name: provider.name,
     'base-url': provider.baseUrl,
+    ...serializeRuntimePolicy(provider),
     keys: Array.isArray(provider.apiKeyEntries)
       ? provider.apiKeyEntries.map((entry) => serializeApiKeyEntry(entry))
       : [],
   };
   if (provider.prefix?.trim()) payload.prefix = provider.prefix.trim();
   if (provider.disabled !== undefined) payload.disabled = provider.disabled;
+  if (provider.supportPromptCacheKey !== undefined)
+    payload['support-prompt-cache-key'] = provider.supportPromptCacheKey;
   const headers = serializeHeaders(provider.headers);
   if (headers) payload.headers = headers;
   const models = serializeModelAliases(provider.models, true);
@@ -236,9 +291,10 @@ const keySerializer = (family: ProviderFamily) =>
     ? serializeVertexKey
     : family === 'gemini' || family === 'interactions'
       ? serializeGeminiKey
-      : serializeProviderKey;
+      : (config: ProviderKeyConfig) => serializeProviderKey(config, family);
 const emptyOverride = (field: string): unknown => {
-  if (['models', 'excluded-models'].includes(field)) return [];
+  if (['models', 'excluded-models', 'request-scoped-errors'].includes(field)) return [];
+  if (field === 'request-retry') return -1;
   if (['headers', 'cloak'].includes(field)) return {};
   if (['disable-cooling', 'websockets', 'disabled'].includes(field)) return false;
   if (['priority', 'weight'].includes(field)) return 0;
@@ -398,7 +454,9 @@ const updateKey = async (
   delete before['base-url'];
   delete after['base-url'];
   const rawModels = keys[keyIndex].models ?? group.models;
-  keys[keyIndex] = applyProviderChanges(keys[keyIndex], before, after, group);
+  const rawKey = keys[keyIndex];
+  keys[keyIndex] = applyProviderChanges(rawKey, before, after, group);
+  applyPolicyIntent(keys[keyIndex], rawKey, config, after);
   preserveModelMetadata(
     keys[keyIndex],
     rawModels,
@@ -497,6 +555,7 @@ export const providersApi = {
     const before = serializeOpenAIGroup(original);
     const after = serializeOpenAIGroup(config);
     const next = applyProviderChanges(groups[index], before, after);
+    applyPolicyIntent(next, groups[index], config, after);
     preserveModelMetadata(
       next,
       groups[index].models,

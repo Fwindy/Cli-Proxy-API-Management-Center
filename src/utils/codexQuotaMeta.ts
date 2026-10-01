@@ -9,6 +9,10 @@ import type {
 } from '@/types';
 import { apiCallApi, getApiCallErrorMessage } from '@/services/api/apiCall';
 import {
+  normalizeCodexAccountCredits,
+  type CodexQuotaData,
+} from '@/features/quota/providers/codex/data';
+import {
   CODEX_RATE_LIMIT_RESET_CREDITS_URL,
   CODEX_REQUEST_HEADERS,
   CODEX_USAGE_URL,
@@ -54,15 +58,7 @@ export interface CodexQuotaMeta {
 }
 
 export interface CodexQuotaFetchWithMetaResult {
-  data: {
-    planType: string | null;
-    subscriptionActiveUntil: string | number | null;
-    rateLimitResetCreditsAvailableCount: number | null;
-    rateLimitResetCreditsApplicableAvailableCount: number | null;
-    rateLimitResetCredits: CodexRateLimitResetCredit[];
-    rateLimitResetCreditsError: string;
-    windows: CodexQuotaWindow[];
-  };
+  data: CodexQuotaData;
   meta: CodexQuotaMeta;
 }
 
@@ -375,6 +371,7 @@ export const fetchCodexQuotaWithMeta = async (
   }
 
   const planTypeFromUsage = normalizePlanType(payload.plan_type ?? payload.planType);
+  const accountCredits = normalizeCodexAccountCredits(payload.credits);
   const planType = planTypeFromUsage ?? planTypeFromFile;
   const resetCredits = payload.rate_limit_reset_credits ?? payload.rateLimitResetCredits ?? null;
   const usageResetCreditsData = normalizeCodexResetCreditsPayload(resetCredits);
@@ -394,6 +391,8 @@ export const fetchCodexQuotaWithMeta = async (
     data: {
       planType,
       subscriptionActiveUntil,
+      creditBalance: accountCredits.balance,
+      creditsUnlimited: accountCredits.unlimited,
       rateLimitResetCreditsAvailableCount,
       rateLimitResetCreditsApplicableAvailableCount,
       rateLimitResetCredits: resetCreditsData.credits,

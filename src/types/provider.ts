@@ -1,3 +1,26 @@
+export type ProviderPolicyField = 'disable-cooling' | 'request-retry' | 'request-scoped-errors';
+
+export interface RequestScopedErrorRule {
+  status?: number;
+  match?: string[];
+  matchRegex?: string[];
+  action?: 'stop' | 'stop-and-cooldown' | 'continue' | 'continue-and-cooldown';
+}
+
+export interface ProviderBehaviorOptions {
+  alphaSearch?: boolean;
+  disableCodexCloaking?: boolean;
+  rebuildMidSystemMessage?: boolean;
+  supportPromptCacheKey?: boolean;
+}
+
+export interface ProviderRuntimePolicy {
+  requestRetry?: number;
+  requestScopedErrors?: RequestScopedErrorRule[];
+  /** Explicit form intent: remove the local override, preserving an untouched null. */
+  inheritFields?: ProviderPolicyField[];
+}
+
 /** Persisted v8 identity. Never derive a group from its endpoint or credential. */
 export interface ProviderSource {
   groups?: unknown[];
@@ -19,6 +42,14 @@ export interface ModelAlias {
   priority?: number;
   testModel?: string;
   image?: boolean;
+  displayName?: string;
+  maxContextLength?: number;
+  forceMapping?: boolean;
+  isCompat?: boolean;
+  supportConfigurationUpdate?: boolean;
+  inputModalities?: string[];
+  outputModalities?: string[];
+  useMaxCompletionTokens?: boolean;
   thinking?: Record<string, unknown>;
 }
 
@@ -37,7 +68,7 @@ export interface CloakConfig {
   cacheUserId?: boolean;
 }
 
-export interface GeminiKeyConfig {
+export interface GeminiKeyConfig extends ProviderRuntimePolicy {
   source?: ProviderSource;
   apiKey: string;
   priority?: number;
@@ -52,7 +83,7 @@ export interface GeminiKeyConfig {
   authIndex?: string;
 }
 
-export interface ProviderKeyConfig {
+export interface ProviderKeyConfig extends ProviderRuntimePolicy, ProviderBehaviorOptions {
   source?: ProviderSource;
   apiKey: string;
   priority?: number;
@@ -70,7 +101,7 @@ export interface ProviderKeyConfig {
   authIndex?: string;
 }
 
-export interface OpenAIProviderConfig {
+export interface OpenAIProviderConfig extends ProviderRuntimePolicy, ProviderBehaviorOptions {
   source?: ProviderSource;
   name: string;
   prefix?: string;

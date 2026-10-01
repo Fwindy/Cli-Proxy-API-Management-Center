@@ -4,6 +4,9 @@
 
 import type { GeminiKeyConfig, OpenAIProviderConfig, ProviderKeyConfig } from '@/types';
 import type { ThinkingLevel } from './thinkingLevels';
+import type { RuntimePolicyDraft } from './runtimePolicy';
+import type { ModelOptionsInput } from './modelOptions';
+import type { ProviderBehaviorOptions } from '@/types/provider';
 
 export type ProviderBrand =
   | 'gemini'
@@ -130,7 +133,9 @@ export interface SponsorProviderRaw {
  * 通用 Sheet 表单值。
  * Gemini/Codex/Claude/Vertex/OpenAI 共用基础字段,各自启用 advanced 区。
  */
-export interface ModelEntryInput {
+export interface ModelEntryInput extends ModelOptionsInput {
+  /** Only used by the OAuth alias editor. */
+  fork?: boolean;
   sourceIndex?: number | null;
   name: string;
   alias?: string;
@@ -145,7 +150,7 @@ export interface ModelEntryInput {
 
 export type SponsorProtocol = 'openai' | 'codex' | 'claude' | 'gemini';
 
-export interface SponsorKeyEntryInput {
+export interface SponsorKeyEntryInput extends ProviderBehaviorOptions {
   protocol: SponsorProtocol;
   apiKey: string;
   existingApiKey?: string;
@@ -154,6 +159,7 @@ export interface SponsorKeyEntryInput {
   prefix: string;
   disabled: boolean;
   disableCooling?: boolean;
+  runtimePolicy?: RuntimePolicyDraft;
   priority?: number;
   weight?: number;
   models: ModelEntryInput[];
@@ -175,7 +181,7 @@ export interface CloakInput {
   cacheUserId: boolean;
 }
 
-export interface ProviderEntryFormInput {
+export interface ProviderEntryFormInput extends ProviderBehaviorOptions {
   /** OpenAI 创建时只在 apiKeyEntries 中传 */
   apiKey: string;
   /** OpenAI 必填,其余 brand 不展示 */
@@ -185,6 +191,7 @@ export interface ProviderEntryFormInput {
   prefix: string;
   disabled: boolean;
   disableCooling?: boolean;
+  runtimePolicy?: RuntimePolicyDraft;
   priority?: number;
   weight?: number;
 

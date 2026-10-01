@@ -18,6 +18,21 @@ import type {
 } from '@/types/visualConfig';
 import { DEFAULT_VISUAL_VALUES } from '@/types/visualConfig';
 import { assertConfigListsUnchanged, ConfigDraftConflictError } from '@/services/api/configPatch';
+import {
+  ADDITION_FIELDS,
+  ICE_KEY,
+  readVisualAdditions,
+  writeVisualAdditions,
+  writeICEServers,
+  validateVisualAdditions,
+} from '@/features/config/visualConfigAdditions';
+
+import {
+  SERVER_FIELDS,
+  readVisualServer,
+  writeVisualServer,
+  validateVisualServer,
+} from '@/features/config/visualConfigServer';
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return null;
@@ -169,9 +184,12 @@ function getRedisRetentionError(value: string): 'integer_range_1_3600' | undefin
 }
 
 export function getVisualConfigValidationErrors(
-  values: VisualConfigValues
+  values: VisualConfigValues,
+  dirtyFields?: ReadonlySet<string>
 ): VisualConfigValidationErrors {
   return {
+    ...validateVisualAdditions(values, dirtyFields),
+    ...validateVisualServer(values),
     port: getPortError(values.port),
     errorLogsMaxFiles: getNonNegativeIntegerError(values.errorLogsMaxFiles),
     logsMaxTotalSizeMb: getNonNegativeIntegerError(values.logsMaxTotalSizeMb),
@@ -1073,6 +1091,7 @@ function alignRebasedValues(
     }));
   return {
     ...draft,
+    [ICE_KEY]: alignRebasedEntries(baseline[ICE_KEY], draft[ICE_KEY], (row) => row.urlsText),
     payloadDefaultRules: alignRules(baseline.payloadDefaultRules, draft.payloadDefaultRules),
     payloadDefaultRawRules: alignRules(
       baseline.payloadDefaultRawRules,
@@ -1101,6 +1120,7 @@ function alignRebasedValues(
 }
 
 type VisualConfigState = {
+  baselineYaml: string;
   visualValues: VisualConfigValues;
   baselineValues: VisualConfigValues;
   dirtyFields: Set<string>;
@@ -1111,6 +1131,7 @@ type VisualConfigState = {
 type VisualConfigAction =
   | {
       type: 'load_success';
+      yaml: string;
       values: VisualConfigValues;
     }
   | {
@@ -1132,6 +1153,7 @@ type VisualConfigAction =
 function createInitialVisualConfigState(): VisualConfigState {
   const initialValues = deepClone(DEFAULT_VISUAL_VALUES);
   return {
+    baselineYaml: '{}',
     visualValues: initialValues,
     baselineValues: deepClone(initialValues),
     dirtyFields: new Set(),
@@ -1170,6 +1192,19 @@ function getNextDirtyFields(
       updateDirty(key, nextValues[key] === baselineValues[key]);
     }
   };
+
+  SERVER_FIELDS.forEach(({ key }) => {
+    if (Object.prototype.hasOwnProperty.call(patch, key)) {
+      updateDirty(key, JSON.stringify(nextValues[key]) === JSON.stringify(baselineValues[key]));
+    }
+  });
+  ADDITION_FIELDS.forEach(({ key }) => updateScalarDirty(key));
+  if (Object.prototype.hasOwnProperty.call(patch, ICE_KEY)) {
+    updateDirty(
+      ICE_KEY,
+      withoutEditorIds(nextValues[ICE_KEY]) === withoutEditorIds(baselineValues[ICE_KEY])
+    );
+  }
 
   (
     [
@@ -1318,6 +1353,7 @@ function visualConfigReducer(
   switch (action.type) {
     case 'load_success':
       return {
+        baselineYaml: action.yaml,
         visualValues: action.values,
         baselineValues: deepClone(action.values),
         rebasedPayload: null,
@@ -1327,6 +1363,7 @@ function visualConfigReducer(
     case 'rebase_success': {
       const values = alignRebasedValues(action.baseline, action.draft);
       return {
+        baselineYaml: action.serverYaml,
         visualValues: values,
         baselineValues: action.baseline,
         rebasedPayload: {
@@ -1399,6 +1436,8 @@ function parseVisualValuesFromYaml(yamlContent: string): VisualConfigValues {
   const codexHeaderDefaults = asRecord(v8OauthProvidersCodex?.['header-defaults']);
 
   const newValues: VisualConfigValues = {
+    ...readVisualAdditions(document),
+    ...readVisualServer(document),
     host: typeof v8Server?.['host'] === 'string' ? v8Server?.['host'] : '',
     port: String(v8Server?.['port'] ?? ''),
 
@@ -1519,11 +1558,18 @@ export function useVisualConfig() {
     undefined,
     createInitialVisualConfigState
   );
-  const { visualValues, baselineValues, visualParseError, dirtyFields, rebasedPayload } = state;
+  const {
+    visualValues,
+    baselineValues,
+    baselineYaml,
+    visualParseError,
+    dirtyFields,
+    rebasedPayload,
+  } = state;
   const visualDirty = dirtyFields.size > 0;
   const visualValidationErrors = useMemo(
-    () => getVisualConfigValidationErrors(visualValues),
-    [visualValues]
+    () => getVisualConfigValidationErrors(visualValues, dirtyFields),
+    [visualValues, dirtyFields]
   );
   const visualHasPayloadValidationErrors = useMemo(
     () =>
@@ -1542,7 +1588,7 @@ export function useVisualConfig() {
   const loadVisualValuesFromYaml = useCallback((yamlContent: string) => {
     try {
       const newValues = parseVisualValuesFromYaml(yamlContent);
-      dispatch({ type: 'load_success', values: newValues });
+      dispatch({ type: 'load_success', values: newValues, yaml: yamlContent });
       return { ok: true as const };
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Invalid YAML';
@@ -1595,6 +1641,25 @@ export function useVisualConfig() {
           });
         }
         const values = visualValues;
+        writeVisualAdditions(doc, values, dirtyFields);
+        writeVisualServer(
+          doc,
+          values,
+          dirtyFields,
+          rebasedPayload?.yaml ?? baselineYaml,
+          rebasedPayload?.serverYaml ?? baselineYaml,
+          target === 'server'
+        );
+        if (dirtyFields.has(ICE_KEY)) {
+          writeICEServers(
+            doc,
+            rebasedPayload?.yaml ?? baselineYaml,
+            rebasedPayload?.serverYaml ?? baselineYaml,
+            payloadBaseline[ICE_KEY],
+            values[ICE_KEY],
+            target === 'server'
+          );
+        }
         const shouldWritePluginStoreAuth = dirtyFields.has('pluginStoreAuth');
 
         // The backend accepts null routing as defaults, but YAML setIn cannot traverse it.
@@ -2062,7 +2127,7 @@ export function useVisualConfig() {
         return currentYaml;
       }
     },
-    [baselineValues, dirtyFields, visualValues, rebasedPayload]
+    [baselineValues, baselineYaml, dirtyFields, visualValues, rebasedPayload]
   );
 
   const setVisualValues = useCallback((newValues: Partial<VisualConfigValues>) => {

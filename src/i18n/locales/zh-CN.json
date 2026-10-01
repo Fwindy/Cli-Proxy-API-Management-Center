@@ -273,6 +273,14 @@
     "health_status_warning": "警告",
     "health_status_disabled": "已停用",
     "download_button": "下载",
+    "refresh_all_button": "刷新全部凭证",
+    "refresh_all_confirm": "刷新服务器上所有符合条件的凭证（不限于当前筛选结果）。后端会跳过已禁用或不满足刷新条件的凭证；此操作不是刷新列表或重置配额，可能需要几分钟。是否继续？",
+    "refresh_all_results": "凭证刷新结果",
+    "refresh_all_summary": "刷新成功 {{success}} 项，失败 {{failed}} 项。",
+    "refresh_all_empty": "没有符合刷新条件的凭证。",
+    "refresh_all_failed": "未能获取完整刷新结果：{{message}}。部分凭证可能已刷新，请检查列表后再重试。",
+    "refresh_result_success": "刷新成功",
+    "refresh_result_failed": "刷新失败",
     "manual_refresh_button": "刷新 OAuth 凭证",
     "manual_refresh_requested": "已提交 \"{{name}}\" 的凭证刷新请求",
     "manual_refresh_failed": "提交 \"{{name}}\" 的凭证刷新请求失败：{{message}}",
@@ -307,8 +315,8 @@
     "pagination_prev": "上一页",
     "pagination_next": "下一页",
     "pagination_info": "第 {{current}} / {{total}} 页 · 共 {{count}} 个文件",
-    "search_label": "搜索配置文件",
-    "search_placeholder": "输入名称、账号、类型或提供方关键字，支持 * 通配",
+    "search_label": "按名称、账号、类型、提供方或错误信息搜索凭证",
+    "search_placeholder": "搜索名称、账号、类型、提供方或错误信息（403、429、invalid），支持 * 通配",
     "problem_filter_label": "状态筛选",
     "problem_filter_all": "全部",
     "problem_filter_enabled": "启用",
@@ -389,6 +397,24 @@
     "websockets_hint": "为该凭证开启 Responses API 的 websocket 传输。",
     "using_api_label": "使用官方 API（using_api）",
     "using_api_hint": "开启后使用 xAI 官方 API；关闭时使用 Grok CLI chat-proxy。",
+    "policy_alias_name": "模型别名",
+    "policy_alias_display_name": "显示名称",
+    "policy_alias_fork": "在模型列表中保留原始模型",
+    "policy_alias_force_mapping": "将响应模型名称改写为别名",
+    "policy_unsupported": "现有数据无法通过此表单编辑，将保持原样。选择继承可清除数据，也可替换后重新填写列表。",
+    "policy_replace": "替换现有数据",
+    "policy_retry_label": "单凭据请求重试",
+    "policy_inherit": "继承",
+    "policy_custom": "自定义",
+    "policy_retry_count": "重试次数",
+    "policy_retry_hint": "继承使用全局 request-retry 设置。自定义为 0 表示此凭据明确不重试请求。",
+    "policy_aliases_label": "单凭据模型别名",
+    "policy_aliases_hint": "优先匹配单凭据别名，未匹配时回退到渠道别名。选择继承或清空列表只会清除单凭据别名。",
+    "policy_rules_label": "单凭据错误规则",
+    "policy_rules_hint": "自定义规则按列表顺序优先生效。选择继承或清空列表将使用继承的规则，不会禁用它们。正则表达式使用 Go 语法。",
+    "policy_retry_invalid": "请输入非负安全整数，或选择继承。",
+    "policy_aliases_invalid": "请为每个新增或修改的行填写非空模型名称和别名。",
+    "policy_rules_invalid": "请为每条修改的规则填写正整数状态码、动作和至少一个非空匹配条件。",
     "note_label": "备注（note）",
     "note_placeholder": "输入备注信息，例如：张三的账号",
     "note_hint": "可选，用于标记凭证用途或归属；留空则不写入。",
@@ -496,6 +522,8 @@
     "additional_team_secondary_window": "{{name}} 月度限额",
     "plan_label": "套餐",
     "expires_label": "续期时间",
+    "credit_balance_label": "Credit 余额",
+    "credit_unlimited": "无限额",
     "reset_credits_label": "主动重置次数",
     "reset_credits_expiry_label": "主动重置过期时间（{{timezone}}）",
     "reset_credit_number": "第 {{index}} 次",
@@ -561,6 +589,8 @@
     "title": "Kimi 额度",
     "empty_title": "暂无 Kimi 认证",
     "empty_desc": "上传 Kimi 认证文件后即可查看额度。",
+    "domain_unavailable": "无法读取 Kimi 凭据的域名，需要可下载且有效的认证文件。",
+    "stale_request": "连接或凭据已变更，请重试。",
     "idle": "点击此处刷新额度",
     "loading": "正在加载额度...",
     "load_failed": "额度获取失败：{{message}}",
@@ -569,6 +599,7 @@
     "refresh_button": "刷新额度",
     "fetch_all": "获取全部",
     "weekly_limit": "周限额",
+    "monthly_limit": "月限额",
     "limit_window": "{{duration}} 限额",
     "limit_index": "限额 #{{index}}",
     "reset_hint": "{{hint}} 后重置"
@@ -591,6 +622,8 @@
     "reset_at": "重置 {{time}}",
     "product_usage": "{{product}} 使用",
     "plan_label": "套餐",
+    "resets_label": "重置",
+    "prepaid": "预付",
     "plan_supergrok": "SuperGrok",
     "plan_supergrok_heavy": "SuperGrok Heavy",
     "plan_paid": "付费",
@@ -1039,6 +1072,166 @@
       "no_changes": "未检测到变更"
     },
     "visual": {
+      "serverExtras": {
+        "trustedProxies": {
+          "label": "可信代理",
+          "hint": "填写 IP 地址或 CIDR；留空不信任转发头。信任覆盖所有地址的网段有客户端 IP 伪造风险。重启后端后生效。"
+        },
+        "discoveryEnabled": {
+          "label": "启用服务发现",
+          "hint": "通过 mDNS / DNS-SD 在局域网广播。默认关闭，支持热更新。"
+        },
+        "discoveryServiceName": {
+          "label": "服务名称前缀",
+          "hint": "后端自动追加短 ID，留空使用 CPA-<ShortID>。"
+        },
+        "discoveryServiceType": {
+          "label": "服务类型",
+          "hint": "留空使用 _ai-gateway._tcp。"
+        },
+        "discoverySubtypes": {
+          "label": "协议子类型",
+          "hint": "留空使用默认的五种协议。缺少前导 _ 时自动补齐，非法项会被忽略。"
+        },
+        "discoveryInterfacesInclude": {
+          "label": "包含网卡",
+          "hint": "留空自动选择物理局域网网卡。支持网卡名称或以 * 结尾的前缀匹配。"
+        },
+        "discoveryInterfacesExclude": {
+          "label": "排除网卡",
+          "hint": "支持网卡名称或以 * 结尾的前缀匹配。排除规则优先于包含规则。"
+        },
+        "discoveryAuthRequired": {
+          "label": "广播鉴权要求",
+          "hint": "默认开启。仅广播元数据，不改变实际 API 鉴权。"
+        },
+        "discoveryAdvertiseManagement": {
+          "label": "广播管理服务",
+          "hint": "默认关闭。仅广播管理服务存在，不修改远程访问权限。"
+        },
+        "discoveryTitle": "局域网发现",
+        "discoveryHint": "需要支持组播的物理网卡及非回环监听地址。Docker 通常需使用 host 网络；不保证服务可达。"
+      },
+      "additions": {
+        "oauthTitle": "OAuth 提供商行为",
+        "oauthHint": "本组提供商设置仅适用于 OAuth/认证文件凭据，不影响 API Key 凭据。",
+        "claudeTitle": "Claude",
+        "codexTitle": "Codex",
+        "antigravityTitle": "Antigravity",
+        "xaiTitle": "xAI",
+        "liveRelayTitle": "Codex Live 媒体中继",
+        "liveRelayHint": "在代理进程内中继 WebRTC 音频和 DataChannel 流量，需要入站 UDP 可达。请勿在截图或日志中暴露 ICE 凭据。",
+        "iceAdd": "添加 ICE 服务器",
+        "iceRemove": "移除 ICE 服务器 {{index}}",
+        "iceURLs": "STUN/TURN URL",
+        "iceUsername": "TURN 用户名",
+        "iceCredential": "TURN 密码",
+        "iceServer": "ICE 服务器 {{index}}",
+        "routingSessionAffinitySubagents": {
+          "label": "子代理会话亲和性",
+          "hint": "默认开启，仅在启用会话亲和性时生效。子代理继承父会话的凭据以复用缓存；关闭后通过凭据池分散子代理请求，提高并发能力。"
+        },
+        "saveCooldownStatus": {
+          "label": "持久化冷却状态",
+          "hint": "将各凭据的冷却状态保存到认证文件旁的 .cds 文件。默认关闭，关闭时仅在内存中保存状态。"
+        },
+        "transientErrorCooldownSeconds": {
+          "label": "瞬时错误冷却时间（秒）",
+          "hint": "适用于上游 408/500/502/503/504/520–526 错误。0 使用默认的 60 秒冷却时间，负数禁用此类冷却。"
+        },
+        "videoResultAuthCacheTTL": {
+          "label": "视频结果凭据缓存有效期",
+          "hint": "视频 ID 与创建它的凭据保持绑定的时长。使用 30m、3h 等时长格式，默认 3h。"
+        },
+        "claudeHeaderTimezone": {
+          "label": "后备时区",
+          "hint": "用于伪装请求中 currentDate 的 IANA 时区，例如 Asia/Singapore；Local 表示后端主机时区。凭据 JSON 中的 timezone 优先。"
+        },
+        "claudeModelLevelCooling": {
+          "label": "按模型冷却",
+          "hint": "仅对请求的模型应用 Claude 配额冷却，而非冷却该凭据下的所有模型。默认关闭。"
+        },
+        "claudeDisableCloakMode": {
+          "label": "禁用请求伪装",
+          "hint": "禁用 Claude Code CLI 身份伪装和系统提示词替换，原样传递系统提示词。凭据文件可通过 cloak_mode 覆盖。默认 false，即仅对非 Claude Code 客户端自动伪装。"
+        },
+        "claudeCodeDisableCloakingModelList": {
+          "label": "禁用模型 ID 伪装",
+          "hint": "在 Anthropic 模型列表响应中返回原始模型 ID，而非伪装后的 ID。默认关闭。"
+        },
+        "codexDisableCloaking": {
+          "label": "禁用请求伪装",
+          "hint": "不再为 HTTP/SSE 和 WebSocket 请求强制设置官方 Codex User-Agent 与 Originator 请求头。默认关闭。"
+        },
+        "codexModelLevelCooling": {
+          "label": "按模型冷却",
+          "hint": "仅对请求的模型应用 usage_limit_reached 配额冷却，而非冷却该凭据下的所有模型。默认关闭。"
+        },
+        "codexStreamBootstrapBuffering": {
+          "label": "流启动缓冲",
+          "hint": "暂存初始空事件和心跳，以便在早期过载或限流拒绝时切换凭据重试。默认关闭。会延迟响应头，可能触发客户端或反向代理超时；缓冲受帧数和字节数预算限制。"
+        },
+        "codexStreamBootstrapTimeout": {
+          "label": "流启动缓冲超时",
+          "hint": "可选的缓冲时间上限，例如 20s。默认 0，表示不限制时间，但仍受帧数和字节数预算限制。仅在收到上游帧时检查，并非所有网络卡死场景的硬截止时间；响应头仍可能等待转换后的输出。"
+        },
+        "codexOptimizeMultiAgentV2": {
+          "label": "多代理 v2 优化",
+          "hint": "优化官方 Codex 多代理请求：更新 spawn_agent 模型信息、移除消息参数加密、规范化 agent_message 内容，并为非 Codex 协议转换为用户消息。默认关闭。"
+        },
+        "codexOrphanDelegationCompatibility": {
+          "label": "孤立委派输出兼容",
+          "hint": "对带有 X-Openai-Subagent: collab_spawn 的请求，将缺少有效匹配调用的 codex_app/create_thread 和 codex_app/send_message_to_thread 孤立输出转换为用户消息。默认关闭。"
+        },
+        "codexResponseSteering": {
+          "label": "响应引导",
+          "hint": "实验性全双工 Codex Responses WebSocket。每条连接始终绑定同一上游账号和模型，已接受的输入不会重放。默认关闭。"
+        },
+        "antigravityConnectionPoolEnabled": {
+          "label": "启用连接池",
+          "hint": "复用上游 HTTP/1.1 连接。默认 false，使用短连接。"
+        },
+        "antigravityConnectionPoolIdleTimeout": {
+          "label": "空闲连接超时",
+          "hint": "空闲连接在池中保留的时长，默认 30s，上限 210s。设为 0 或负时长时切换为短连接。"
+        },
+        "antigravityConnectionPoolMaxIdleConnsPerHost": {
+          "label": "每主机最大空闲连接数",
+          "hint": "每个凭据为每个上游主机保留的最大空闲连接数，默认 2，上限 100。0 使用 Go 默认值 2，负数切换为短连接。"
+        },
+        "xaiInjectXSearch": {
+          "label": "注入 x_search",
+          "hint": "请求未声明 xAI 原生 x_search 工具时自动添加，并在适用时加入 tool_choice.allowed_tools。默认关闭。"
+        },
+        "codexLiveMediaRelayEnabled": {
+          "label": "启用媒体中继",
+          "hint": "在当前进程内终止并中继 Codex Live WebRTC 媒体连接，需要入站 UDP 可达。默认关闭，以保持媒体直连。"
+        },
+        "codexLiveMediaRelayMaxSessions": {
+          "label": "最大并发媒体会话数",
+          "hint": "留空或设为 0 使用默认的 32 个会话。自定义 UDP 端口范围必须为每个会话提供至少两个端口。"
+        },
+        "codexLiveMediaRelayDisablePrivateRemoteIPs": {
+          "label": "阻止私有远端 IP 候选",
+          "hint": "默认 false，允许私有地址候选，适合本地或可信网络客户端。开启后拒绝指向私有、回环、链路本地或未指定 IP 的下游 SDP 候选，减少内网暴露风险，但可能导致本地连接失败。"
+        },
+        "codexLiveMediaRelayPublicIP": {
+          "label": "通告的公网 IP",
+          "hint": "代理位于 1:1 NAT 后时，可填写向对端通告的公网 IPv4 或 IPv6 地址。请填写 IP 地址而非主机名。"
+        },
+        "codexLiveMediaRelayUDPPortMin": {
+          "label": "UDP 端口下限",
+          "hint": "上下限均为 0 时由系统分配；否则须提供包含两端的连续端口范围，端口数量至少为实际会话上限的两倍。"
+        },
+        "codexLiveMediaRelayUDPPortMax": {
+          "label": "UDP 端口上限",
+          "hint": "不得小于下限。上下限须同时为 0 或同时非零；自定义范围每个会话至少需要两个端口，默认 32 个会话需要至少 64 个端口。"
+        },
+        "codexLiveMediaRelayICEServers": {
+          "label": "ICE 服务器",
+          "hint": "可选的 STUN/TURN 服务器，URL 支持 stun:、stuns:、turn: 或 turns:。JSON 配置 API 不返回 TURN 凭据。请通过密码字段填写凭据，勿将秘密暴露在截图或日志中。"
+        }
+      },
       "search": {
         "placeholder": "搜索配置项（标签或 YAML 键名）",
         "no_results": "没有匹配的配置项"
@@ -1248,6 +1441,10 @@
         "add_title": "添加 API 密钥",
         "input_label": "API 密钥",
         "input_placeholder": "粘贴你的 API 密钥",
+        "name_label": "名称 / 说明（可选）",
+        "name_placeholder": "例如：小明的笔记本",
+        "name_hint": "名称立即保存在当前浏览器中，按服务器隔离，不写入服务器配置。清空此字段可移除名称。",
+        "name_save_error": "无法将名称保存到浏览器存储，请检查浏览器存储设置。",
         "input_hint": "保存配置后生效。上游提供商密钥独立管理，不受此处修改影响。",
         "error_empty": "请输入 API 密钥",
         "error_invalid": "API 密钥包含无效字符",
@@ -1311,7 +1508,17 @@
         "boolean_false": "false"
       },
       "validation": {
+        "invalid_trusted_proxies": "每个可信代理必须是有效的 IP 地址或 CIDR。",
+        "invalid_discovery_service_type": "请使用 _名称._tcp 格式：名称为 1–15 位英文字母、数字或连字符，首尾不能是连字符。",
         "validation_blocked": "请先修复表单校验错误再保存",
+        "invalid_duration": "请输入有效时长，例如 30s 或 3h",
+        "positive_duration": "请输入大于零的时长",
+        "invalid_timezone": "请输入有效的 IANA 时区，例如 Asia/Singapore",
+        "invalid_ip": "请输入有效的 IPv4 或 IPv6 地址",
+        "udp_port_pair": "UDP 端口上下限须同时为 0，或同时设置且下限不大于上限",
+        "udp_port_capacity": "UDP 端口数量须至少为实际最大会话数的两倍（会话数为 0 时按 32 计算）",
+        "invalid_ice_servers": "每个 ICE 服务器须至少包含一个有效的 stun:、stuns:、turn: 或 turns: URL",
+        "integer_range_0_65535": "请输入 0 到 65535 之间的整数",
         "port_range": "请输入 1 到 65535 之间的有效端口",
         "integer": "请输入整数",
         "non_negative_integer": "请输入非负整数",
@@ -1570,6 +1777,7 @@
     "clear_login_confirm": "确认清理本地登录信息并退出登录？"
   },
   "notification": {
+    "trusted_proxies_restart_required": "可信代理配置已保存，重启后端后生效。",
     "region_label": "通知",
     "type_success": "成功",
     "type_info": "提示",
@@ -1618,8 +1826,89 @@
     "version": "管理中心版本"
   },
   "providersPage": {
-    "groups": {
-      "rowHint": "未修改的字段保留组继承。修改基础 URL 将影响组内所有密钥。新建行会创建新组。"
+    "behavior": {
+      "title": "提供商专属行为",
+      "alphaSearch": "启用 Alpha Search",
+      "alphaSearchHint": "允许此 Codex 密钥用于 Alpha Search。上游必须支持此功能。",
+      "codexCloaking": "Codex 请求伪装",
+      "codexCloakingHint": "为此 API 密钥覆盖官方 Codex 身份请求头设置。选择默认值会移除此凭据的覆盖设置；仅适用于 OAuth 的设置在此不生效。",
+      "useDefault": "使用后端默认值",
+      "cloakingEnabled": "启用伪装",
+      "cloakingDisabled": "禁用伪装",
+      "rebuildMidSystemMessage": "重建系统消息",
+      "rebuildMidSystemMessageHint": "将 Claude 中 role 为 system 的消息移至顶层 system 字段。",
+      "supportPromptCacheKey": "注入提示词缓存键",
+      "supportPromptCacheKeyHint": "为兼容的请求派生并注入 prompt_cache_key。仅在上游支持此字段时启用。"
+    },
+    "modelOptions": {
+      "displayName": "显示名称",
+      "maxContextLength": "上下文长度",
+      "contextHint": "非负安全整数；留空使用默认值。",
+      "forceMapping": "将响应模型名称改写为别名",
+      "isCompat": "兼容模式",
+      "supportConfigurationUpdate": "允许配置更新",
+      "inputModalitiesText": "输入模态",
+      "outputModalitiesText": "输出模态",
+      "modalitiesHint": "使用逗号或空白分隔；保留自定义模态名称。",
+      "useMaxCompletionTokens": "使用 max_completion_tokens",
+      "thinkingMode": "思考配置覆盖",
+      "useDefault": "使用默认",
+      "custom": "自定义",
+      "thinkingHint": "默认继承后端行为；空的自定义覆盖是显式的 {}。预算和思考档位可以同时设置。仅当最小值和最大值均为 0 或留空时，才不指定数值范围。最小值大于 0 时须设置不小于它的最大值。",
+      "thinkingMin": "最小思考预算",
+      "thinkingMax": "最大思考预算",
+      "thinkingZeroAllowed": "允许零预算",
+      "thinkingDynamicAllowed": "允许动态预算",
+      "invalidContext": "上下文长度必须是非负安全整数。",
+      "invalidThinking": "思考配置必须是有效的 JSON 对象。",
+      "invalidBudget": "思考预算必须是非负安全整数。",
+      "invalidRange": "最小思考预算不能大于最大值，留空的边界按 0 处理。",
+      "removeModel": "移除模型",
+      "modelName": "模型名称",
+      "modelAlias": "别名（可选）"
+    },
+    "runtimePolicy": {
+      "title": "高级运行策略",
+      "description": "继承使用所属分组策略，再回退到后端默认值。覆盖仅作用于当前条目。",
+      "cooling": "冷却策略",
+      "inherit": "继承",
+      "coolingEnabled": "启用冷却",
+      "coolingDisabled": "禁用冷却",
+      "retry": "请求重试次数",
+      "retryHint": "留空继承分组设置。请输入整数：0 表示不重试；负数使用全局重试策略，而非分组策略。",
+      "errorsMode": "请求错误规则",
+      "override": "覆盖",
+      "errorsHint": "继承使用上级策略。覆盖会替换整个列表，可保存为空。切换模式会保留规则草稿。",
+      "invalidRetry": "重试次数必须是安全范围内的整数，或留空以继承。"
+    },
+    "errorRules": {
+      "hint": "按顺序采用首个命中规则；状态码相同，任意条件命中即可。",
+      "empty": "暂无规则，可保存为空列表。",
+      "rule": "规则 {{number}}",
+      "status": "状态码",
+      "action": "动作",
+      "selectAction": "选择动作",
+      "moveUp": "上移规则",
+      "moveDown": "下移规则",
+      "removeRule": "删除规则",
+      "matchType": "匹配类型",
+      "text": "包含文本",
+      "regex": "正则表达式",
+      "matchValue": "匹配条件",
+      "regexHint": "Go 正则",
+      "removeMatch": "删除条件",
+      "addMatch": "新增条件",
+      "addRule": "新增规则",
+      "invalidStatus": "状态码必须是安全范围内的正整数。",
+      "invalidAction": "请选择有效动作。",
+      "invalidMatch": "匹配条件不可为空。",
+      "missingMatch": "至少需要一个匹配条件。",
+      "actions": {
+        "stop": "停止",
+        "stop-and-cooldown": "停止并冷却",
+        "continue": "继续",
+        "continue-and-cooldown": "继续并冷却"
+      }
     },
     "header": {
       "title": "AI 提供商",
@@ -1819,8 +2108,8 @@
       "proxyBadge": "代理",
       "modelBadgeImage": "图片",
       "modelBadgeThinking": "Thinking",
-      "thinkingConfig": "允许的思考档位",
-      "thinkingExistingHint": "当前后端配置会保持不变；修改选项后将替换为所选标准档位。",
+      "thinkingConfig": "思考能力",
+      "thinkingExistingHint": "修改思考档位会保留预算及其他未修改的设置。",
       "thinkingLevels": {
         "none": "关闭思考",
         "minimal": "最少",

@@ -7,15 +7,14 @@ import type {
   ProviderKeyConfig,
 } from '@/types';
 import type { Config } from '@/types/config';
+import type { ProviderRuntimePolicy, RequestScopedErrorRule } from '@/types/provider';
 import { buildHeaderObject } from '@/utils/headers';
 import { isRecord } from '@/utils/helpers';
 import { readCredentialWeight } from '@/utils/credentialWeight';
+import { normalizeModelOptions, normalizeModelThinking } from './providerModels';
 
 const normalizeBoolean = (value: unknown): boolean | undefined =>
   typeof value === 'boolean' ? value : undefined;
-
-const normalizeRecord = (value: unknown): Record<string, unknown> | undefined =>
-  isRecord(value) ? value : undefined;
 
 const normalizeModelAliases = (models: unknown): ModelAlias[] => {
   if (!Array.isArray(models)) return [];
@@ -34,8 +33,8 @@ const normalizeModelAliases = (models: unknown): ModelAlias[] => {
       const priority = item.priority;
       const testModel = item['test-model'];
       const image = normalizeBoolean(item.image);
-      const thinking = normalizeRecord(item.thinking);
-      const entry: ModelAlias = { name: String(name), sourceIndex };
+      const thinking = normalizeModelThinking(item.thinking);
+      const entry: ModelAlias = { name: String(name), sourceIndex, ...normalizeModelOptions(item) };
       if (alias) {
         entry.alias = String(alias);
       }
@@ -122,6 +121,28 @@ const normalizeApiKeyEntry = (entry: unknown): ApiKeyEntry | null => {
   return result;
 };
 
+const normalizeRuntimePolicy = (record: Record<string, unknown> | null): ProviderRuntimePolicy => {
+  const policy: ProviderRuntimePolicy = {};
+  const retry = record?.['request-retry'];
+  if (typeof retry === 'number' && Number.isSafeInteger(retry)) policy.requestRetry = retry;
+  const rules = record?.['request-scoped-errors'];
+  if (Array.isArray(rules)) {
+    policy.requestScopedErrors = rules.filter(isRecord).map((rule) => ({
+      ...(typeof rule.status === 'number' ? { status: rule.status } : {}),
+      ...(Array.isArray(rule.match)
+        ? { match: rule.match.filter((v): v is string => typeof v === 'string') }
+        : {}),
+      ...(Array.isArray(rule['match-regexr'])
+        ? { matchRegex: rule['match-regexr'].filter((v): v is string => typeof v === 'string') }
+        : {}),
+      ...(typeof rule.action === 'string'
+        ? { action: rule.action as RequestScopedErrorRule['action'] }
+        : {}),
+    }));
+  }
+  return policy;
+};
+
 const normalizeProviderKeyConfig = (item: unknown): ProviderKeyConfig | null => {
   if (item === undefined || item === null) return null;
   const record = isRecord(item) ? item : null;
@@ -129,7 +150,15 @@ const normalizeProviderKeyConfig = (item: unknown): ProviderKeyConfig | null => 
   const trimmed = String(apiKey || '').trim();
   if (!trimmed) return null;
 
-  const config: ProviderKeyConfig = { apiKey: trimmed };
+  const config: ProviderKeyConfig = { apiKey: trimmed, ...normalizeRuntimePolicy(record) };
+  for (const [key, wire] of [
+    ['alphaSearch', 'alpha-search'],
+    ['disableCodexCloaking', 'disable-codex-cloaking'],
+    ['rebuildMidSystemMessage', 'rebuild-mid-system-message'],
+  ] as const) {
+    const value = normalizeBoolean(record?.[wire]);
+    if (value !== undefined) config[key] = value;
+  }
   const weight = readCredentialWeight(record?.weight);
   if (weight !== undefined) config.weight = weight;
   const priority = record?.priority;
@@ -199,7 +228,7 @@ const normalizeGeminiKeyConfig = (item: unknown): GeminiKeyConfig | null => {
   const trimmed = String(apiKey || '').trim();
   if (!trimmed) return null;
 
-  const config: GeminiKeyConfig = { apiKey: trimmed };
+  const config: GeminiKeyConfig = { apiKey: trimmed, ...normalizeRuntimePolicy(record) };
   const weight = readCredentialWeight(record?.weight);
   if (weight !== undefined) config.weight = weight;
   const priority = record?.priority;
@@ -255,8 +284,11 @@ const normalizeOpenAIProvider = (
     name: String(name),
     baseUrl: String(baseUrl),
     apiKeyEntries,
+    ...normalizeRuntimePolicy(provider),
   };
 
+  const supportPromptCacheKey = normalizeBoolean(provider['support-prompt-cache-key']);
+  if (supportPromptCacheKey !== undefined) result.supportPromptCacheKey = supportPromptCacheKey;
   const disabled = normalizeBoolean(provider.disabled);
   if (disabled !== undefined) result.disabled = disabled;
   const disableCooling = normalizeBoolean(provider['disable-cooling']);
