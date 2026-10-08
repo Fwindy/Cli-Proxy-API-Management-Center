@@ -490,6 +490,7 @@
     "seven_day_cowork": "7-day Cowork",
     "iguana_necktie": "Iguana Necktie",
     "seven_day_fable": "7-day Fable 5",
+    "cloud_session_credits": "Cloud session credits",
     "extra_usage_label": "Extra Usage",
     "plan_label": "Plan",
     "plan_unknown": "Unknown",
@@ -535,13 +536,15 @@
     "reset_confirm_title": "Reset Codex quota",
     "reset_confirm_message": "This will consume 1 manual reset to reset the Codex quota for \"{{name}}\". Continue?",
     "reset_confirm_button": "Reset quota",
+    "reset_not_confirmed": "Quota reset was not confirmed. Refresh the quota before trying again.",
+    "reset_cooldown_failed": "Quota was reset, but the gateway cooldown could not be cleared. On the original connection, use Clear cooldown on the credential page; do not redeem another reset.",
     "reset_success": "Reset Codex quota for \"{{name}}\"",
     "reset_failed": "Failed to reset Codex quota for \"{{name}}\": {{message}}",
     "plan_plus": "Plus",
     "plan_team": "Team",
     "plan_free": "Free",
-    "plan_pro": "Pro 20x",
-    "plan_prolite": "Pro 5x",
+    "plan_pro": "Pro 200",
+    "plan_prolite": "Pro 100",
     "plan_business_premium": "Business Premium"
   },
   "devin_quota": {
@@ -623,6 +626,7 @@
     "usage_unavailable": "Usage unavailable from xAI",
     "reset_at": "Resets {{time}}",
     "product_usage": "{{product}} usage",
+    "usage_breakdown": "Usage breakdown (shared quota)",
     "plan_label": "Plan",
     "resets_label": "Resets",
     "prepaid": "Prepaid",
@@ -1260,6 +1264,8 @@
           "signature_title": "Signature Validation"
         },
         "server": {
+          "github_token": "Global GitHub Token",
+          "github_token_hint": "Used for server-side GitHub requests, such as panel updates and plugin downloads. Takes precedence over GITHUB_TOKEN; leave empty to use environment credentials, or unauthenticated requests if none are set. Matching plugin store authentication rules take precedence.",
           "host": "Host Address",
           "port": "Port"
         },
@@ -1805,7 +1811,9 @@
     "chinese": "中文",
     "chinese_tw": "Traditional Chinese (Taiwan)",
     "english": "English",
-    "russian": "Русский"
+    "russian": "Русский",
+    "vietnamese": "Tiếng Việt",
+    "korean": "한국어"
   },
   "theme": {
     "switch": "Theme",
@@ -2082,7 +2090,7 @@
       "disabledHint": "Disabled entries won't be used by the gateway",
       "websockets": "Enable WebSockets",
       "testModel": "Test model",
-      "testModelClaudeHint": "Used for connectivity testing only; not saved",
+      "testModelHint": "Used for connectivity testing only; not saved",
       "testModelAutoWith": "Auto · {{name}}",
       "testModelAutoEmpty": "Auto (no models added yet)",
       "testModelCustom": "{{name}} (custom)",
@@ -2199,5 +2207,34 @@
     "modelCatalog": {
       "notLoaded": "Not loaded"
     }
+  },
+  "claude_reset": {
+    "expiry_title": "Manual reset expiry ({{timezone}})",
+    "grant_number": "Grant {{index}}",
+    "expiry_unknown": "Expiry unknown",
+    "retry_confirm": "Retry the unknown reset for “{{name}}” with its original request ID? A reset may already have been spent. Retry within 10 minutes; do not reload or start another claim in another tab.",
+    "remaining": "Resets remaining",
+    "title": "Banked resets",
+    "scope": "Uses a limited reset grant to clear eligible Claude usage windows. Only confirm when you want to spend a reset. Recovery is limited to this tab/session; do not reload or use another tab while an outcome is unknown.",
+    "loading": "Loading…",
+    "read_error": "Reset grants could not be read. Nothing was submitted.",
+    "blocked": "Reset not submitted: eligibility, account identity, or session could not be verified. Refresh and check again.",
+    "unknown": "The outcome is unknown. A reset may have been spent. Retry within 10 minutes using the same request ID; do not start another claim elsewhere.",
+    "expired": "The retry window has expired. Further claims are blocked in this session. Check your Claude account before taking any further action.",
+    "retry": "Retry the same claim",
+    "empty": "No banked reset grants.",
+    "count": "{{left}} / {{total}} resets remaining",
+    "ends": "Expires: {{date}}",
+    "use": "Reset limits",
+    "confirm": "Confirm reset",
+    "confirm_text": "Spend one reset to clear eligible usage limits for “{{name}}”? This uses a limited reset grant.",
+    "reset": "Usage limits reset.",
+    "already_used": "This grant was already used.",
+    "not_limited": "No reset: the account is not currently limited.",
+    "cooldown": "No reset: cooldown is active.",
+    "ineligible": "This account is not eligible.",
+    "unavailable": "Resets are currently unavailable.",
+    "rate_limited": "Request rate limited.",
+    "auth_error": "Authorization was refused."
   }
 }

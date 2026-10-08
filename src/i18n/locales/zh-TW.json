@@ -435,7 +435,7 @@
   },
   "antigravity_subscription": {
     "plan_unknown": "未知",
-    "plan_free": "免費版",
+    "plan_free": "Free",
     "plan_pro": "Pro",
     "plan_ultra": "Ultra",
     "plan_ultra_lite": "Ultra Lite"
@@ -488,15 +488,16 @@
     "seven_day_cowork": "7 天 Cowork",
     "iguana_necktie": "Iguana Necktie",
     "seven_day_fable": "7 天 Fable 5",
+    "cloud_session_credits": "雲端工作階段額度",
     "extra_usage_label": "額外用量",
     "plan_label": "方案",
     "plan_unknown": "未知",
-    "plan_free": "免費版",
-    "plan_pro": "專業版",
+    "plan_free": "Free",
+    "plan_pro": "Pro",
     "plan_max": "Max",
     "plan_max5": "Max 5x",
     "plan_max20": "Max 20x",
-    "plan_team": "團隊版"
+    "plan_team": "Team"
   },
   "codex_quota": {
     "title": "Codex 配額",
@@ -533,13 +534,16 @@
     "reset_confirm_title": "重置 Codex 配額",
     "reset_confirm_message": "將消耗 1 次主動重置次數來重置「{{name}}」的 Codex 配額。是否繼續？",
     "reset_confirm_button": "確認重置",
+    "reset_not_confirmed": "尚未確認額度重置成功，請重新整理額度後再決定是否重試。",
+    "reset_cooldown_failed": "額度已重置，但代理冷卻清除失敗。請在原連線的認證檔案頁面使用「清除冷卻」，不要再次消耗重置卡。",
+
     "reset_success": "已重置「{{name}}」的 Codex 配額",
     "reset_failed": "重置「{{name}}」的 Codex 配額失敗：{{message}}",
     "plan_plus": "Plus",
     "plan_team": "Team",
     "plan_free": "Free",
-    "plan_pro": "Pro 20x",
-    "plan_prolite": "Pro 5x",
+    "plan_pro": "Pro 200",
+    "plan_prolite": "Pro 100",
     "plan_business_premium": "Business Premium"
   },
   "devin_quota": {
@@ -621,6 +625,7 @@
     "usage_unavailable": "xAI 用量暫不可用",
     "reset_at": "重置 {{time}}",
     "product_usage": "{{product}} 使用",
+    "usage_breakdown": "用量明細（共用配額）",
     "plan_label": "方案",
     "resets_label": "重置",
     "prepaid": "預付",
@@ -1284,6 +1289,8 @@
           "signature_title": "簽章驗證"
         },
         "server": {
+          "github_token": "全域 GitHub 權杖",
+          "github_token_hint": "用於面板更新、外掛下載等伺服器端 GitHub 請求。優先於 GITHUB_TOKEN；留空時使用環境變數憑證，未設定憑證則匿名請求。外掛商店符合的驗證規則優先。",
           "host": "主機位址",
           "port": "連接埠"
         },
@@ -1829,7 +1836,9 @@
     "chinese": "簡體中文",
     "chinese_tw": "繁體中文（台灣）",
     "english": "英文",
-    "russian": "俄文"
+    "russian": "俄文",
+    "vietnamese": "Tiếng Việt",
+    "korean": "한국어"
   },
   "theme": {
     "switch": "主題",
@@ -2106,7 +2115,7 @@
       "disabledHint": "停用後不會被閘道使用",
       "websockets": "啟用 WebSockets",
       "testModel": "測試模型",
-      "testModelClaudeHint": "僅用於連通性測試,不會被儲存",
+      "testModelHint": "僅用於連通性測試,不會被儲存",
       "testModelAutoWith": "自動 · {{name}}",
       "testModelAutoEmpty": "自動(尚未新增模型)",
       "testModelCustom": "{{name}}(自訂)",
@@ -2223,5 +2232,34 @@
     "modelCatalog": {
       "notLoaded": "未載入"
     }
+  },
+  "claude_reset": {
+    "expiry_title": "主動重置過期時間（{{timezone}}）",
+    "grant_number": "第 {{index}} 批",
+    "expiry_unknown": "到期時間未知",
+    "retry_confirm": "使用原請求 ID 重試「{{name}}」結果未知的重置？可能已消耗一次重置。請在 10 分鐘內重試；請勿重新載入頁面或在其他分頁發起新請求。",
+    "remaining": "剩餘重置次數",
+    "title": "儲備重置次數",
+    "scope": "使用有限的重置權益清除符合條件的 Claude 用量視窗。僅在確定要消耗一次重置時確認。復原僅限目前分頁和工作階段；結果未知時，請勿重新載入頁面或使用其他分頁。",
+    "loading": "載入中…",
+    "read_error": "無法讀取重置權益，未提交重置。",
+    "blocked": "未提交重置：無法驗證資格、帳戶身分或工作階段。請重新整理後檢查。",
+    "unknown": "結果未知，可能已消耗一次重置。請在 10 分鐘內使用相同請求 ID 重試，不要在其他位置發起新的重置。",
+    "expired": "重試視窗已過期，目前工作階段已阻止進一步重置。請先檢查 Claude 帳戶狀態。",
+    "retry": "重試同一請求",
+    "empty": "沒有儲備重置權益。",
+    "count": "剩餘 {{left}} / {{total}} 次重置",
+    "ends": "到期：{{date}}",
+    "use": "重置額度",
+    "confirm": "確認重置",
+    "confirm_text": "確定消耗一次重置，清除「{{name}}」符合條件的用量限制？重置次數有限。",
+    "reset": "已重置用量限制。",
+    "already_used": "該權益已使用。",
+    "not_limited": "未重置：帳戶目前未達到限制。",
+    "cooldown": "未重置：仍在冷卻期。",
+    "ineligible": "此帳戶不符合資格。",
+    "unavailable": "重置暫不可用。",
+    "rate_limited": "請求過於頻繁。",
+    "auth_error": "授權遭拒。"
   }
 }
