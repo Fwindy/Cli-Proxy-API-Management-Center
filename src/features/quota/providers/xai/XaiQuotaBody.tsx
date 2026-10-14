@@ -170,12 +170,20 @@ export function XaiQuotaBody({ quota, classes }: QuotaBodyProps<XaiQuotaState>) 
 
   return (
     <>
-      {(subscriptionLabel || headerReset) && (
+      {(subscriptionLabel || headerReset || onDemandCap <= 0) && (
         <div className={classes.codexPlan}>
           {subscriptionLabel && (
             <span className={classes.codexPlanItem}>
               <span className={classes.codexPlanLabel}>{t('xai_quota.plan_label')}</span>
               <span className={subscriptionClass}>{subscriptionLabel}</span>
+            </span>
+          )}
+          {onDemandCap <= 0 && (
+            <span className={classes.codexPlanItem}>
+              <span className={classes.codexPlanLabel}>{t('xai_quota.pay_as_you_go_label')}</span>
+              <span className={classes.codexPlanValue}>
+                {t('xai_quota.pay_as_you_go_disabled')}
+              </span>
             </span>
           )}
           {headerReset && (
@@ -206,9 +214,9 @@ export function XaiQuotaBody({ quota, classes }: QuotaBodyProps<XaiQuotaState>) 
             <span className={classes.quotaModel}>{t('xai_quota.weekly_limit')}</span>
             <div className={classes.quotaMeta}>
               <span className={classes.quotaPercent}>
-                {weeklyUsed === null
+                {weeklyRemaining === null
                   ? t('xai_quota.usage_unavailable')
-                  : t('xai_quota.used_percent', { percent: formatXaiPercent(weeklyUsed) })}
+                  : formatXaiPercent(weeklyRemaining)}
               </span>
               {weeklyResetDisplay && (
                 <QuotaResetLabel display={weeklyResetDisplay} classes={classes} soon={weeklySoon} />
@@ -234,7 +242,7 @@ export function XaiQuotaBody({ quota, classes }: QuotaBodyProps<XaiQuotaState>) 
           ))}
         </div>
       )}
-      {onDemandCap > 0 ? (
+      {onDemandCap > 0 && (
         <div className={classes.quotaRow}>
           <div className={classes.quotaRowHeader}>
             <span className={classes.quotaModel}>{t('xai_quota.pay_as_you_go_label')}</span>
@@ -243,16 +251,7 @@ export function XaiQuotaBody({ quota, classes }: QuotaBodyProps<XaiQuotaState>) 
               <span className={classes.quotaAmount}>{onDemandAmountLabel}</span>
             </div>
           </div>
-          <QuotaMeter
-            percent={onDemandRemaining}
-            classes={classes}
-            index={1}
-          />
-        </div>
-      ) : (
-        <div className={classes.codexPlan}>
-          <span className={classes.codexPlanLabel}>{t('xai_quota.pay_as_you_go_label')}</span>
-          <span className={classes.codexPlanValue}>{t('xai_quota.pay_as_you_go_disabled')}</span>
+          <QuotaMeter percent={onDemandRemaining} classes={classes} index={1} />
         </div>
       )}
       {hasMonthlyData && (
@@ -267,11 +266,7 @@ export function XaiQuotaBody({ quota, classes }: QuotaBodyProps<XaiQuotaState>) 
               )}
             </div>
           </div>
-          <QuotaMeter
-            percent={remaining}
-            classes={classes}
-            index={2}
-          />
+          <QuotaMeter percent={remaining} classes={classes} index={2} />
         </div>
       )}
     </>
