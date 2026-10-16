@@ -10,6 +10,12 @@ import { QuotaMeter } from '../../components/QuotaMeter';
 import { collectQuotaRowInstants, pickUrgentRowId } from '../../resetSchedule';
 import type { QuotaBodyProps } from '../../types';
 import { getNextAntigravityCountdownUpdateDelay } from './countdown';
+import {
+  resolveAntigravityBucketLabelKey,
+  resolveAntigravityGroupLabelKey,
+  resolveAntigravityGroupModels,
+  shouldShowAntigravityQuotaAvailable,
+} from './labels';
 
 const formatAntigravityDuration = (t: TFunction, deltaMs: number): string => {
   const totalMinutes = Math.max(1, Math.ceil(deltaMs / 60000));
@@ -52,31 +58,8 @@ const formatAntigravityResetLabel = (
   });
 };
 
-const ANTIGRAVITY_GROUP_LABEL_KEYS = new Map<string, string>([
-  ['gemini models', 'group_gemini_models'],
-  ['claude and gpt models', 'group_claude_gpt_models'],
-]);
-
-const ANTIGRAVITY_BUCKET_LABEL_KEYS = new Map<string, string>([
-  ['weekly limit', 'weekly_limit'],
-  ['daily limit', 'daily_limit'],
-  ['5 hour limit', 'five_hour_limit'],
-  ['5-hour limit', 'five_hour_limit'],
-  ['five hour limit', 'five_hour_limit'],
-  ['monthly limit', 'monthly_limit'],
-]);
-
-const normalizeAntigravityQuotaText = (value: string): string =>
-  value.trim().toLowerCase().replace(/\s+/g, ' ');
-
-const translateAntigravityQuotaLabel = (
-  value: string,
-  keys: Map<string, string>,
-  t: TFunction
-): string => {
-  const key = keys.get(normalizeAntigravityQuotaText(value));
-  return key ? t(`antigravity_quota.${key}`) : value;
-};
+const translateAntigravityQuotaLabel = (value: string, key: string | null, t: TFunction) =>
+  key ? t(`antigravity_quota.${key}`) : value;
 
 const translateAntigravityQuotaDescription = (
   value: string | undefined,
@@ -170,10 +153,15 @@ export function AntigravityQuotaBody({ quota, classes }: QuotaBodyProps<Antigrav
         groups.map((group) => {
           const groupLabel = translateAntigravityQuotaLabel(
             group.label,
-            ANTIGRAVITY_GROUP_LABEL_KEYS,
+            resolveAntigravityGroupLabelKey(group.label),
             t
           );
-          const groupDescription = translateAntigravityQuotaDescription(group.description, t);
+          const groupModels = resolveAntigravityGroupModels(group.label, group.description);
+          const groupDescription = groupModels
+            ? t('antigravity_quota.group_models_description', {
+                models: groupModels.join(', '),
+              })
+            : translateAntigravityQuotaDescription(group.description, t);
 
           return (
             <div key={group.id} className={classes.antigravityQuotaGroup}>
@@ -188,16 +176,15 @@ export function AntigravityQuotaBody({ quota, classes }: QuotaBodyProps<Antigrav
               {group.buckets.map((bucket, index) => {
                 const clamped = Math.max(0, Math.min(1, bucket.remainingFraction));
                 const percent = clamped * 100;
-                const percentLabel =
-                  bucket.remainingFraction === 1
-                    ? t('antigravity_quota.quota_available')
-                    : t('antigravity_quota.remaining_percent', {
-                        percent: Math.round(percent),
-                      });
+                const percentLabel = shouldShowAntigravityQuotaAvailable(bucket, group.buckets)
+                  ? t('antigravity_quota.quota_available')
+                  : t('antigravity_quota.remaining_percent', {
+                      percent: Math.round(percent),
+                    });
                 const resetLabel = formatAntigravityResetLabel(bucket.resetTime, t, nowMs);
                 const bucketLabel = translateAntigravityQuotaLabel(
                   bucket.label,
-                  ANTIGRAVITY_BUCKET_LABEL_KEYS,
+                  resolveAntigravityBucketLabelKey(bucket.label, bucket.window),
                   t
                 );
                 const bucketDescription = translateAntigravityQuotaDescription(
