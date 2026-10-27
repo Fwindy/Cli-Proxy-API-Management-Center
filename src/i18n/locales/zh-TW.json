@@ -1,4 +1,11 @@
 {
+  "usage_stats": {
+    "request_events_request_model": "請求模型",
+    "request_events_response_model": "回傳模型",
+    "request_events_columns": "顯示欄位",
+    "request_events_columns_all": "顯示全部",
+    "request_events_columns_minimum": "至少保留一欄"
+  },
   "common": {
     "login": "登入",
     "logout": "登出",

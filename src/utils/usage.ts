@@ -87,6 +87,7 @@ export interface ModelPrice {
 
 export interface UsageDetail {
   id?: string;
+  response_model?: string;
   timestamp: string;
   source: string;
   auth_index: string | number | null;
@@ -329,14 +330,20 @@ const normalizeFailBody = (value: unknown): string | undefined => {
  */
 const extractUsageStatusFields = (
   detail: Record<string, unknown>
-): Pick<UsageDetail, 'provider' | 'service_tier' | 'failure_status_code' | 'failure_body'> => {
+): Pick<
+  UsageDetail,
+  'provider' | 'service_tier' | 'response_model' | 'failure_status_code' | 'failure_body'
+> => {
   const provider = normalizeProvider(detail.provider);
   const serviceTier = normalizeServiceTier(detail.service_tier ?? detail.serviceTier);
+  const responseModel =
+    typeof detail.response_model === 'string' ? detail.response_model.trim() : '';
   const failStatusCode = normalizeFailStatusCode(detail.failure_status_code ?? detail.fail_status_code);
   const failBody = normalizeFailBody(detail.failure_body ?? detail.fail_body);
   return {
     ...(provider ? { provider } : {}),
     ...(serviceTier ? { service_tier: serviceTier } : {}),
+    ...(responseModel ? { response_model: responseModel } : {}),
     ...(failStatusCode !== undefined ? { failure_status_code: failStatusCode } : {}),
     ...(failBody !== undefined ? { failure_body: failBody } : {}),
   };

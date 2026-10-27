@@ -1,4 +1,11 @@
 {
+  "usage_stats": {
+    "request_events_request_model": "요청 모델",
+    "request_events_response_model": "응답 모델",
+    "request_events_columns": "열 표시",
+    "request_events_columns_all": "모두 표시",
+    "request_events_columns_minimum": "하나 이상의 열을 표시해야 합니다"
+  },
   "common": {
     "login": "로그인",
     "logout": "로그아웃",

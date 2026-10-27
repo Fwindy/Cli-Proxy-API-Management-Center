@@ -1,14 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { IconMinus } from '@/components/usage/UsageIcons';
+import { RequestEventColumnPicker } from './RequestEventColumnPicker';
+import {
+  getAvailableRequestEventColumns,
+  getVisibleRequestEventColumns,
+  normalizeHiddenRequestEventColumns,
+  REQUEST_EVENT_ACTION_WIDTH,
+  REQUEST_EVENT_COLUMNS_STORAGE_KEY,
+  type RequestEventColumnId,
+} from './requestEventColumns';
 import { getAuthFileStatusMessage } from '@/features/authFiles/constants';
 import { useInterval } from '@/hooks/useInterval';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { authFilesApi } from '@/services/api/authFiles';
 import { useNotificationStore } from '@/stores/useNotificationStore';
 import { useUsageStatsStore } from '@/stores/useUsageStatsStore';
@@ -28,7 +37,6 @@ import {
   normalizeAuthIndex,
   type UsageThinking,
 } from '@/utils/usage';
-import { downloadBlob } from '@/utils/download';
 import styles from '@/pages/UsagePage.module.scss';
 
 const ALL_FILTER = '__all__';
@@ -43,6 +51,7 @@ type RequestEventRow = {
   timestampMs: number;
   timestampLabel: string;
   model: string;
+  responseModel: string;
   sourceKey: string;
   sourceRaw: string;
   source: string;
@@ -93,9 +102,7 @@ const MAX_CUSTOM_AUTO_REFRESH_SECONDS = 3600;
 const DEFAULT_CUSTOM_AUTO_REFRESH_SECONDS = 60;
 
 type AutoRefreshValue =
-  | keyof typeof AUTO_REFRESH_INTERVALS
-  | typeof AUTO_REFRESH_OFF
-  | typeof AUTO_REFRESH_CUSTOM;
+  keyof typeof AUTO_REFRESH_INTERVALS | typeof AUTO_REFRESH_OFF | typeof AUTO_REFRESH_CUSTOM;
 
 const toNumber = (value: unknown): number => {
   const parsed = Number(value);
@@ -108,7 +115,10 @@ const normalizeCustomAutoRefreshSeconds = (value: unknown): number => {
   if (!Number.isFinite(parsed)) {
     return DEFAULT_CUSTOM_AUTO_REFRESH_SECONDS;
   }
-  return Math.min(Math.max(parsed, MIN_CUSTOM_AUTO_REFRESH_SECONDS), MAX_CUSTOM_AUTO_REFRESH_SECONDS);
+  return Math.min(
+    Math.max(parsed, MIN_CUSTOM_AUTO_REFRESH_SECONDS),
+    MAX_CUSTOM_AUTO_REFRESH_SECONDS
+  );
 };
 
 const normalizeThinkingText = (value: unknown): string => {
@@ -179,13 +189,6 @@ const formatCacheHitRatio = (ratio: number | null): string => {
   return `${(ratio * 100).toFixed(1)}%`;
 };
 
-const encodeCsv = (value: string | number): string => {
-  const text = String(value ?? '');
-  const trimmedLeft = text.replace(/^\s+/, '');
-  const safeText = trimmedLeft && /^[=+\-@]/.test(trimmedLeft) ? `'${text}` : text;
-  return `"${safeText.replace(/"/g, '""')}"`;
-};
-
 export function RequestEventsDetailsCard({
   usage,
   loading,
@@ -202,6 +205,10 @@ export function RequestEventsDetailsCard({
   const { t, i18n } = useTranslation();
   const { showConfirmation, showNotification } = useNotificationStore();
   const deleteUsageRecords = useUsageStatsStore((state) => state.deleteUsageRecords);
+  const [hiddenColumns, setHiddenColumns] = useLocalStorage<RequestEventColumnId[]>(
+    REQUEST_EVENT_COLUMNS_STORAGE_KEY,
+    []
+  );
 
   const [modelFilter, setModelFilter] = useState(ALL_FILTER);
   const [sourceFilter, setSourceFilter] = useState(ALL_FILTER);
@@ -275,7 +282,7 @@ export function RequestEventsDetailsCard({
       { value: '30s', label: '30s' },
       { value: '1m', label: '1m' },
       { value: '5m', label: '5m' },
-      { value: AUTO_REFRESH_CUSTOM, label: t('monitoring_center.auto_refresh_custom') }
+      { value: AUTO_REFRESH_CUSTOM, label: t('monitoring_center.auto_refresh_custom') },
     ],
     [t]
   );
@@ -309,16 +316,21 @@ export function RequestEventsDetailsCard({
     setNextRefreshAtMs(nextRefreshAt);
   }, [autoRefreshDelay, lastRefreshedAt]);
 
-  useInterval(() => {
-    setCountdownNowMs(Date.now());
-  }, autoRefreshDelay ? 1000 : null);
+  useInterval(
+    () => {
+      setCountdownNowMs(Date.now());
+    },
+    autoRefreshDelay ? 1000 : null
+  );
 
   const handleCustomAutoRefreshSecondsChange = useCallback((value: string) => {
     setCustomAutoRefreshSeconds(value.replace(/\D/g, ''));
   }, []);
 
   const handleCustomAutoRefreshSecondsBlur = useCallback(() => {
-    setCustomAutoRefreshSeconds(normalizeCustomAutoRefreshSeconds(customAutoRefreshSeconds).toString());
+    setCustomAutoRefreshSeconds(
+      normalizeCustomAutoRefreshSeconds(customAutoRefreshSeconds).toString()
+    );
   }, [customAutoRefreshSeconds]);
 
   useInterval(() => {
@@ -360,10 +372,7 @@ export function RequestEventsDetailsCard({
         Math.max(toNumber(detail.tokens?.cached_tokens), 0),
         Math.max(toNumber(detail.tokens?.cache_tokens), 0)
       );
-      const cacheCreationTokens = Math.max(
-        toNumber(detail.tokens?.cache_creation_tokens),
-        0
-      );
+      const cacheCreationTokens = Math.max(toNumber(detail.tokens?.cache_creation_tokens), 0);
       const totalTokens = Math.max(
         toNumber(detail.tokens?.total_tokens),
         extractTotalTokens(detail)
@@ -384,7 +393,8 @@ export function RequestEventsDetailsCard({
       });
       const serviceTier = normalizeThinkingText(detail.service_tier);
       const failStatusCode =
-        typeof detail.failure_status_code === 'number' && Number.isFinite(detail.failure_status_code)
+        typeof detail.failure_status_code === 'number' &&
+        Number.isFinite(detail.failure_status_code)
           ? detail.failure_status_code
           : null;
       const failBody =
@@ -397,6 +407,7 @@ export function RequestEventsDetailsCard({
         timestampMs: Number.isNaN(timestampMs) ? 0 : timestampMs,
         timestampLabel: date ? date.toLocaleString(i18n.language) : timestamp || '-',
         model,
+        responseModel: detail.response_model ?? '',
         sourceKey,
         sourceRaw: sourceRaw || '-',
         source,
@@ -461,6 +472,26 @@ export function RequestEventsDetailsCard({
     () => rows.some((row) => row.firstByteLatencyMs !== null || row.generationMs !== null),
     [rows]
   );
+
+  const availableColumns = getAvailableRequestEventColumns(hasTimingData);
+  const visibleColumns = getVisibleRequestEventColumns(hiddenColumns, hasTimingData);
+  const visibleColumnIds = new Set(visibleColumns.map((column) => column.id));
+  const tableMinWidth =
+    REQUEST_EVENT_ACTION_WIDTH + visibleColumns.reduce((width, column) => width + column.width, 0);
+
+  const handleColumnVisibilityChange = (id: RequestEventColumnId, visible: boolean) => {
+    setHiddenColumns((current) => {
+      const hidden = new Set(normalizeHiddenRequestEventColumns(current, hasTimingData));
+      if (visible) {
+        hidden.delete(id);
+      } else {
+        const currentVisible = getVisibleRequestEventColumns(current, hasTimingData);
+        if (currentVisible.length === 1 && currentVisible[0].id === id) return current;
+        hidden.add(id);
+      }
+      return Array.from(hidden);
+    });
+  };
 
   const modelOptions = useMemo(
     () => [
@@ -533,113 +564,6 @@ export function RequestEventsDetailsCard({
 
   const renderedRows = useMemo(() => filteredRows.slice(0, MAX_RENDERED_EVENTS), [filteredRows]);
 
-  const hasActiveFilters =
-    effectiveModelFilter !== ALL_FILTER ||
-    effectiveSourceFilter !== ALL_FILTER ||
-    effectiveResultFilter !== ALL_FILTER;
-
-  const handleClearFilters = () => {
-    setModelFilter(ALL_FILTER);
-    setSourceFilter(ALL_FILTER);
-    setResultFilter(ALL_FILTER);
-  };
-
-  const handleExportCsv = () => {
-    if (!filteredRows.length) return;
-
-    const csvHeader = [
-      'timestamp',
-      'model',
-      'source',
-      'source_raw',
-      'service_tier',
-      'result',
-      ...(hasTimingData ? ['ttft_ms', 'generation_ms', 'tps'] : []),
-      'reasoning_effort',
-      'input_tokens',
-      'output_tokens',
-      'reasoning_tokens',
-      'cached_tokens',
-      'cache_creation_tokens',
-      'total_tokens',
-      'cache_hit_ratio',
-    ];
-
-    const csvRows = filteredRows.map((row) =>
-      [
-        row.timestamp,
-        row.model,
-        row.source,
-        row.sourceRaw,
-        row.serviceTier,
-        row.failed ? 'failed' : 'success',
-        ...(hasTimingData
-          ? [
-              row.firstByteLatencyMs ?? '',
-              row.generationMs ?? '',
-              row.tps !== null ? row.tps.toFixed(2) : '',
-            ]
-          : []),
-        row.thinkingLabel === '-' ? '' : row.thinkingLabel,
-        row.inputTokens,
-        row.outputTokens,
-        row.reasoningTokens,
-        row.cachedTokens,
-        row.cacheCreationTokens,
-        row.totalTokens,
-        row.cacheHitRatio !== null ? row.cacheHitRatio.toFixed(4) : '',
-      ]
-        .map((value) => encodeCsv(value))
-        .join(',')
-    );
-
-    const content = [csvHeader.join(','), ...csvRows].join('\n');
-    const fileTime = new Date().toISOString().replace(/[:.]/g, '-');
-    downloadBlob({
-      filename: `usage-events-${fileTime}.csv`,
-      blob: new Blob([content], { type: 'text/csv;charset=utf-8' }),
-    });
-  };
-
-  const handleExportJson = () => {
-    if (!filteredRows.length) return;
-
-    const payload = filteredRows.map((row) => ({
-      timestamp: row.timestamp,
-      model: row.model,
-      source: row.source,
-      source_raw: row.sourceRaw,
-      ...(row.serviceTier ? { service_tier: row.serviceTier } : {}),
-      failed: row.failed,
-      ...(row.failed && row.failStatusCode !== null
-        ? { failure_status_code: row.failStatusCode }
-        : {}),
-      ...(row.failed && row.failBody ? { failure_body: row.failBody } : {}),
-      ...(hasTimingData && row.firstByteLatencyMs !== null
-        ? { ttft_ms: row.firstByteLatencyMs }
-        : {}),
-      ...(hasTimingData && row.generationMs !== null ? { generation_ms: row.generationMs } : {}),
-      ...(hasTimingData && row.tps !== null ? { tps: row.tps } : {}),
-      ...(row.thinkingLabel !== '-' ? { reasoning_effort: row.thinkingLabel } : {}),
-      tokens: {
-        input_tokens: row.inputTokens,
-        output_tokens: row.outputTokens,
-        reasoning_tokens: row.reasoningTokens,
-        cached_tokens: row.cachedTokens,
-        cache_creation_tokens: row.cacheCreationTokens,
-        total_tokens: row.totalTokens,
-      },
-      ...(row.cacheHitRatio !== null ? { cache_hit_ratio: row.cacheHitRatio } : {}),
-    }));
-
-    const content = JSON.stringify(payload, null, 2);
-    const fileTime = new Date().toISOString().replace(/[:.]/g, '-');
-    downloadBlob({
-      filename: `usage-events-${fileTime}.json`,
-      blob: new Blob([content], { type: 'application/json;charset=utf-8' }),
-    });
-  };
-
   const handleDeleteRow = useCallback(
     (row: RequestEventRow) => {
       const backendId = row.backendId;
@@ -685,34 +609,6 @@ export function RequestEventsDetailsCard({
     <Card
       title={t('usage_stats.request_events_title')}
       className={fixedHeight ? styles.requestEventsFixedCard : undefined}
-      extra={
-        <div className={styles.requestEventsActions}>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleClearFilters}
-            disabled={!hasActiveFilters}
-          >
-            {t('usage_stats.clear_filters')}
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleExportCsv}
-            disabled={filteredRows.length === 0}
-          >
-            {t('usage_stats.export_csv')}
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={handleExportJson}
-            disabled={filteredRows.length === 0}
-          >
-            {t('usage_stats.export_json')}
-          </Button>
-        </div>
-      }
     >
       <div className={styles.requestEventsToolbar}>
         <div className={styles.requestEventsFilterItem}>
@@ -757,7 +653,9 @@ export function RequestEventsDetailsCard({
         {onRefresh && (
           <div className={styles.requestEventsFilterItem}>
             <span className={styles.requestEventsFilterLabelRow}>
-              <span className={styles.requestEventsFilterLabel}>{t('monitoring_center.auto_refresh')}</span>
+              <span className={styles.requestEventsFilterLabel}>
+                {t('monitoring_center.auto_refresh')}
+              </span>
               {autoRefreshCountdown !== null && (
                 <span className={styles.requestEventsCountdown}>
                   {t('monitoring_center.auto_refresh_countdown', { count: autoRefreshCountdown })}
@@ -788,6 +686,12 @@ export function RequestEventsDetailsCard({
             </div>
           </div>
         )}
+        <RequestEventColumnPicker
+          columns={availableColumns}
+          visibleColumns={visibleColumns}
+          onChange={handleColumnVisibilityChange}
+          onReset={() => setHiddenColumns([])}
+        />
       </div>
 
       {loading && rows.length === 0 ? (
@@ -816,45 +720,24 @@ export function RequestEventsDetailsCard({
           </div>
 
           <div className={styles.requestEventsTableWrapper}>
-            <table className={`${styles.table} ${styles.requestEventsTable}`}>
+            <table
+              className={`${styles.table} ${styles.requestEventsTable}`}
+              style={{ minWidth: tableMinWidth }}
+            >
               <colgroup>
-                <col className={styles.requestEventsActionCol} />
-                <col className={styles.requestEventsTimestampCol} />
-                <col className={styles.requestEventsModelCol} />
-                <col className={styles.requestEventsSourceCol} />
-                <col className={styles.requestEventsTierCol} />
-                <col className={styles.requestEventsResultCol} />
-                {hasTimingData && <col className={styles.requestEventsTimingCol} />}
-                {hasTimingData && <col className={styles.requestEventsTimingCol} />}
-                {hasTimingData && <col className={styles.requestEventsTimingCol} />}
-                <col className={styles.requestEventsThinkingCol} />
-                <col className={styles.requestEventsTokenCol} />
-                <col className={styles.requestEventsTokenCol} />
-                <col className={styles.requestEventsTokenCol} />
-                <col className={styles.requestEventsTokenCol} />
-                <col className={styles.requestEventsTokenCol} />
-                <col className={styles.requestEventsTokenCol} />
-                <col className={styles.requestEventsTokenCol} />
+                <col style={{ width: REQUEST_EVENT_ACTION_WIDTH }} />
+                {visibleColumns.map((column) => (
+                  <col key={column.id} style={{ width: column.width }} />
+                ))}
               </colgroup>
               <thead>
                 <tr>
-                  <th aria-label={t('usage_stats.request_events_delete_action')} />
-                  <th>{t('usage_stats.request_events_timestamp')}</th>
-                  <th>{t('usage_stats.model_name')}</th>
-                  <th>{t('usage_stats.request_events_source')}</th>
-                  <th>{t('usage_stats.request_events_tier')}</th>
-                  <th>{t('usage_stats.request_events_result')}</th>
-                  {hasTimingData && <th>{t('usage_stats.first_byte_latency')}</th>}
-                  {hasTimingData && <th>{t('usage_stats.generation_time')}</th>}
-                  {hasTimingData && <th>{t('usage_stats.request_events_tps')}</th>}
-                  <th>{t('usage_stats.thinking_intensity')}</th>
-                  <th>{t('usage_stats.input_tokens')}</th>
-                  <th>{t('usage_stats.output_tokens')}</th>
-                  <th>{t('usage_stats.reasoning_tokens')}</th>
-                  <th>{t('usage_stats.cached_tokens')}</th>
-                  <th>{t('usage_stats.cache_creation_tokens')}</th>
-                  <th>{t('usage_stats.total_tokens')}</th>
-                  <th>{t('usage_stats.cache_hit')}</th>
+                  <th scope="col" aria-label={t('usage_stats.request_events_delete_action')} />
+                  {visibleColumns.map((column) => (
+                    <th key={column.id} scope="col">
+                      {t(`usage_stats.${column.labelKey}`)}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
@@ -872,79 +755,118 @@ export function RequestEventsDetailsCard({
                         <IconMinus size={14} />
                       </button>
                     </td>
-                    <td title={row.timestamp} className={styles.requestEventsTimestamp}>
-                      {row.timestampLabel}
-                    </td>
-                    <td className={styles.modelCell}>{row.model}</td>
-                    <td className={styles.requestEventsSourceCell} title={row.source}>
-                      <span>{row.source}</span>
-                      {row.sourceType && (
-                        <span className={styles.credentialType}>{row.sourceType}</span>
-                      )}
-                    </td>
-                    <td>
-                      {row.serviceTier ? (
-                        <span className={styles.requestEventsTierBadge}>{row.serviceTier}</span>
-                      ) : (
-                        <span className={styles.requestEventsTierEmpty}>--</span>
-                      )}
-                    </td>
-                    <td>
-                      {row.failed ? (
-                        <button
-                          type="button"
-                          className={`${styles.requestEventsResultFailed} ${styles.requestEventsResultButton}`}
-                          onClick={() => setSelectedFailureRow(row)}
-                          aria-label={t('usage_stats.request_events_failure_log_view')}
-                        >
-                          {t('stats.failure')}
-                        </button>
-                      ) : (
-                        <span className={styles.requestEventsResultSuccess}>{t('stats.success')}</span>
-                      )}
-                    </td>
-                    {hasTimingData && (
-                      <td className={styles.durationCell}>{formatDurationMs(row.firstByteLatencyMs)}</td>
+                    {visibleColumnIds.has('timestamp') && (
+                      <td title={row.timestamp} className={styles.requestEventsTimestamp}>
+                        {row.timestampLabel}
+                      </td>
                     )}
-                    {hasTimingData && (
+                    {visibleColumnIds.has('model') && (
+                      <td className={styles.modelCell} title={row.model}>
+                        {row.model}
+                      </td>
+                    )}
+                    {visibleColumnIds.has('responseModel') && (
+                      <td className={styles.modelCell} title={row.responseModel || undefined}>
+                        {row.responseModel || '--'}
+                      </td>
+                    )}
+                    {visibleColumnIds.has('source') && (
+                      <td className={styles.requestEventsSourceCell} title={row.source}>
+                        <span>{row.source}</span>
+                        {row.sourceType && (
+                          <span className={styles.credentialType}>{row.sourceType}</span>
+                        )}
+                      </td>
+                    )}
+                    {visibleColumnIds.has('tier') && (
+                      <td>
+                        {row.serviceTier ? (
+                          <span className={styles.requestEventsTierBadge}>{row.serviceTier}</span>
+                        ) : (
+                          <span className={styles.requestEventsTierEmpty}>--</span>
+                        )}
+                      </td>
+                    )}
+                    {visibleColumnIds.has('result') && (
+                      <td>
+                        {row.failed ? (
+                          <button
+                            type="button"
+                            className={`${styles.requestEventsResultFailed} ${styles.requestEventsResultButton}`}
+                            onClick={() => setSelectedFailureRow(row)}
+                            aria-label={t('usage_stats.request_events_failure_log_view')}
+                          >
+                            {t('stats.failure')}
+                          </button>
+                        ) : (
+                          <span className={styles.requestEventsResultSuccess}>
+                            {t('stats.success')}
+                          </span>
+                        )}
+                      </td>
+                    )}
+                    {visibleColumnIds.has('firstByteLatency') && (
+                      <td className={styles.durationCell}>
+                        {formatDurationMs(row.firstByteLatencyMs)}
+                      </td>
+                    )}
+                    {visibleColumnIds.has('generation') && (
                       <td className={styles.durationCell}>{formatDurationMs(row.generationMs)}</td>
                     )}
-                    {hasTimingData && <td>{row.tps !== null ? row.tps.toFixed(2) : '--'}</td>}
-                    <td>
-                      <span
-                        className={
-                          row.thinkingLabel !== '-'
-                            ? styles.requestEventsThinkingBadge
-                            : styles.requestEventsThinkingEmpty
-                        }
-                        title={
-                          row.thinking
-                            ? [
-                                row.thinking.mode
-                                  ? `${t('usage_stats.thinking_mode')}: ${row.thinking.mode}`
-                                  : '',
-                                row.thinking.level
-                                  ? `${t('usage_stats.thinking_level')}: ${row.thinking.level}`
-                                  : '',
-                                typeof row.thinking.budget === 'number'
-                                  ? `${t('usage_stats.thinking_budget')}: ${row.thinking.budget.toLocaleString()}`
-                                  : '',
-                              ]
-                                .filter(Boolean)
-                                .join(' · ')
-                            : undefined
-                        }
-                      >
-                        {row.thinkingLabel}
-                      </span>
-                    </td>
-                    <td>{row.inputTokens.toLocaleString()}</td>
-                    <td>{row.outputTokens.toLocaleString()}</td>
-                    <td>{row.reasoningTokens.toLocaleString()}</td>
-                    <td>{row.cachedTokens.toLocaleString()}</td>
-                    <td>{row.cacheCreationTokens.toLocaleString()}</td>
-                    <td>{row.totalTokens.toLocaleString()}</td>
-                    <td>{formatCacheHitRatio(row.cacheHitRatio)}</td>
+                    {visibleColumnIds.has('tps') && (
+                      <td>{row.tps !== null ? row.tps.toFixed(2) : '--'}</td>
+                    )}
+                    {visibleColumnIds.has('thinking') && (
+                      <td>
+                        <span
+                          className={
+                            row.thinkingLabel !== '-'
+                              ? styles.requestEventsThinkingBadge
+                              : styles.requestEventsThinkingEmpty
+                          }
+                          title={
+                            row.thinking
+                              ? [
+                                  row.thinking.mode
+                                    ? `${t('usage_stats.thinking_mode')}: ${row.thinking.mode}`
+                                    : '',
+                                  row.thinking.level
+                                    ? `${t('usage_stats.thinking_level')}: ${row.thinking.level}`
+                                    : '',
+                                  typeof row.thinking.budget === 'number'
+                                    ? `${t('usage_stats.thinking_budget')}: ${row.thinking.budget.toLocaleString()}`
+                                    : '',
+                                ]
+                                  .filter(Boolean)
+                                  .join(' · ')
+                              : undefined
+                          }
+                        >
+                          {row.thinkingLabel}
+                        </span>
+                      </td>
+                    )}
+                    {visibleColumnIds.has('inputTokens') && (
+                      <td>{row.inputTokens.toLocaleString()}</td>
+                    )}
+                    {visibleColumnIds.has('outputTokens') && (
+                      <td>{row.outputTokens.toLocaleString()}</td>
+                    )}
+                    {visibleColumnIds.has('reasoningTokens') && (
+                      <td>{row.reasoningTokens.toLocaleString()}</td>
+                    )}
+                    {visibleColumnIds.has('cachedTokens') && (
+                      <td>{row.cachedTokens.toLocaleString()}</td>
+                    )}
+                    {visibleColumnIds.has('cacheCreationTokens') && (
+                      <td>{row.cacheCreationTokens.toLocaleString()}</td>
+                    )}
+                    {visibleColumnIds.has('totalTokens') && (
+                      <td>{row.totalTokens.toLocaleString()}</td>
+                    )}
+                    {visibleColumnIds.has('cacheHit') && (
+                      <td>{formatCacheHitRatio(row.cacheHitRatio)}</td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -974,7 +896,9 @@ export function RequestEventsDetailsCard({
                 <span className={styles.requestEventsFailureMetaLabel}>
                   {t('usage_stats.request_events_failure_log_model')}
                 </span>
-                <span className={styles.requestEventsFailureMetaValue}>{selectedFailureRow.model}</span>
+                <span className={styles.requestEventsFailureMetaValue}>
+                  {selectedFailureRow.model}
+                </span>
               </div>
             </div>
 
@@ -983,7 +907,9 @@ export function RequestEventsDetailsCard({
                 <span className={styles.requestEventsFailureMetaLabel}>
                   {t('usage_stats.request_events_failure_log_credential')}
                 </span>
-                <span className={styles.requestEventsFailureMetaValue}>{selectedCredentialInfo.name}</span>
+                <span className={styles.requestEventsFailureMetaValue}>
+                  {selectedCredentialInfo.name}
+                </span>
               </div>
             )}
 

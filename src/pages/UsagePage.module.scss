@@ -1045,13 +1045,6 @@
   }
 }
 
-.requestEventsActions {
-  display: inline-flex;
-  align-items: center;
-  gap: $spacing-xs;
-  flex-wrap: wrap;
-}
-
 .requestEventsToolbar {
   display: flex;
   gap: $spacing-sm;
@@ -1160,44 +1153,7 @@
 }
 
 .requestEventsTable {
-  min-width: 1640px;
   table-layout: fixed;
-}
-
-.requestEventsActionCol {
-  width: 44px;
-}
-
-.requestEventsTimestampCol {
-  width: 170px;
-}
-
-.requestEventsModelCol {
-  width: 160px;
-}
-
-.requestEventsSourceCol {
-  width: 228px;
-}
-
-.requestEventsResultCol {
-  width: 86px;
-}
-
-.requestEventsTierCol {
-  width: 96px;
-}
-
-.requestEventsTimingCol {
-  width: 92px;
-}
-
-.requestEventsThinkingCol {
-  width: 110px;
-}
-
-.requestEventsTokenCol {
-  width: 100px;
 }
 
 .requestEventsDeleteCell {

@@ -1,4 +1,11 @@
 {
+  "usage_stats": {
+    "request_events_request_model": "Request Model",
+    "request_events_response_model": "Response Model",
+    "request_events_columns": "Show columns",
+    "request_events_columns_all": "Show all",
+    "request_events_columns_minimum": "Keep at least one column visible"
+  },
   "common": {
     "login": "Login",
     "logout": "Logout",

@@ -1,4 +1,11 @@
 {
+  "usage_stats": {
+    "request_events_request_model": "Mô hình yêu cầu",
+    "request_events_response_model": "Mô hình phản hồi",
+    "request_events_columns": "Hiển thị cột",
+    "request_events_columns_all": "Hiện tất cả",
+    "request_events_columns_minimum": "Giữ ít nhất một cột hiển thị"
+  },
   "common": {
     "login": "Đăng nhập",
     "logout": "Đăng xuất",

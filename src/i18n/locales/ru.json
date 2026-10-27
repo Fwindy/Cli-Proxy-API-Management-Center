@@ -1,4 +1,11 @@
 {
+  "usage_stats": {
+    "request_events_request_model": "Модель запроса",
+    "request_events_response_model": "Модель ответа",
+    "request_events_columns": "Показать столбцы",
+    "request_events_columns_all": "Показать все",
+    "request_events_columns_minimum": "Оставьте хотя бы один столбец"
+  },
   "common": {
     "login": "Войти",
     "logout": "Выйти",

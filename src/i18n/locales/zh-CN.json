@@ -1,4 +1,11 @@
 {
+  "usage_stats": {
+    "request_events_request_model": "请求模型",
+    "request_events_response_model": "返回模型",
+    "request_events_columns": "显示列",
+    "request_events_columns_all": "显示全部",
+    "request_events_columns_minimum": "至少保留一列"
+  },
   "common": {
     "login": "登录",
     "logout": "登出",
