@@ -423,7 +423,7 @@ export async function syncPrices(
     rawData = (await res.json()) as Record<string, unknown>;
   } catch (err: unknown) {
     if (err instanceof DOMException && err.name === 'AbortError') {
-      throw new Error('价格源请求超时，请稍后重试');
+      throw Object.defineProperty(new Error('价格源请求超时，请稍后重试'), 'cause', { value: err });
     }
     throw err;
   } finally {

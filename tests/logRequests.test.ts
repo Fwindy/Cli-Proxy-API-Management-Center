@@ -169,11 +169,14 @@ describe('log request ownership', () => {
 });
 
 describe('logs controller lifecycle wiring', () => {
-  const page = readFileSync(new URL('../src/features/logs/LogsPage.tsx', import.meta.url), 'utf8');
+  const page = readFileSync(
+    new URL('../src/features/logs/LogsPage.tsx', import.meta.url),
+    'utf8'
+  ).replace(/\r\n/g, '\n');
   const source = readFileSync(
     new URL('../src/features/logs/hooks/useLogStream.ts', import.meta.url),
     'utf8'
-  );
+  ).replace(/\r\n/g, '\n');
 
   test('invalidates synchronously on connection identity/config changes and unmount', () => {
     for (const owner of [page, source]) {

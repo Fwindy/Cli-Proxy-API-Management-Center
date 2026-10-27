@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 
-const source = readFileSync('src/features/quota/QuotaPage.tsx', 'utf8');
+const source = readFileSync('src/features/quota/QuotaPage.tsx', 'utf8').replace(/\r\n/g, '\n');
 const styles = readFileSync('src/features/quota/QuotaPage.module.scss', 'utf8');
 
 describe('quota toolbar presentation contracts', () => {

@@ -56,6 +56,17 @@
 
 在CPA的配置面板中，设置面板仓库为本仓库地址后，强制刷新（Ctrl+F5）页面
 
+## 本地构建
+
+使用 **Bun 1.4.3**：
+
+```bash
+bun install --frozen-lockfile
+bun run verify
+```
+
+构建产物为 `dist/index.html`，发布时重命名为 `management.html`。
+
 ## 友链
 
 [![友链 linux.do](https://img.shields.io/badge/LINUX--DO-Community-blue.svg)](https://linux.do/)

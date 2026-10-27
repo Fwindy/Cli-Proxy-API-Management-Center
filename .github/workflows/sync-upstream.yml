@@ -40,8 +40,13 @@ jobs:
           set -euo pipefail
           before_sha="$(git rev-parse HEAD)"
 
+          if git cat-file -e upstream/main:AGENTS.override.md 2>/dev/null; then
+            echo "AGENTS.override.md is reserved for local instructions; resolve the upstream collision manually."
+            exit 1
+          fi
+
           merge_status=0
-          git merge --no-ff --no-commit upstream/main || merge_status=$?
+          git merge --no-ff --no-commit --no-overwrite-ignore upstream/main || merge_status=$?
 
           if ! git rev-parse -q --verify MERGE_HEAD >/dev/null; then
             if [ "$merge_status" -ne 0 ]; then
@@ -54,13 +59,15 @@ jobs:
 
           git restore --source="$before_sha" --staged --worktree -- README.md
 
-          if git ls-files --error-unmatch CLAUDE.md >/dev/null 2>&1; then
-            if git cat-file -e "$before_sha:CLAUDE.md" 2>/dev/null; then
-              git restore --source="$before_sha" --staged --worktree -- CLAUDE.md
+          # Personal instructions live in an untracked AGENTS.override.md locally.
+          # Shared guidance follows upstream, including removals.
+          for guidance in AGENTS.md CLAUDE.md; do
+            if git cat-file -e "upstream/main:$guidance" 2>/dev/null; then
+              git restore --source=upstream/main --staged --worktree -- "$guidance"
             else
-              git rm -f --ignore-unmatch CLAUDE.md
+              git rm -f --ignore-unmatch -- "$guidance"
             fi
-          fi
+          done
 
           remaining_conflicts="$(git diff --name-only --diff-filter=U)"
           if [ -n "$remaining_conflicts" ]; then
@@ -98,7 +105,7 @@ jobs:
         if: steps.merge.outputs.changed == 'true'
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: '1.3.14'
+          bun-version: '1.4.3'
 
       - name: Install dependencies
         if: steps.merge.outputs.changed == 'true'

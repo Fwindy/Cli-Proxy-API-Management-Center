@@ -120,7 +120,7 @@ describe('provider probe proxy forwarding', () => {
     const sponsor = readFileSync(
       'src/features/providers/sheets/forms/SponsorProviderForm.tsx',
       'utf8'
-    );
+    ).replace(/\r\n/g, '\n');
     expect(base.match(/proxyUrl: form\.proxyUrl/g)).toHaveLength(2);
     expect(sponsor).toContain('proxyUrl: entry.proxyUrl,\n    formHeaders: discoveryHeaders');
   });
