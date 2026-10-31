@@ -1,5 +1,10 @@
 {
   "usage_stats": {
+    "request_events_select": "選取 {{timestamp}} 的 {{model}} 請求事件",
+    "request_events_select_all": "全選目前篩選清單",
+    "request_events_delete_selected": "刪除選取項目（{{count}}）",
+    "request_events_delete_selected_confirm": "確認刪除選取的 {{count}} 條請求事件嗎？",
+    "request_events_delete_selected_success": "已刪除 {{count}} 條請求事件",
     "request_events_request_model": "請求模型",
     "request_events_response_model": "回傳模型",
     "request_events_columns": "顯示欄位",

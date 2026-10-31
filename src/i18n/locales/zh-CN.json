@@ -1,5 +1,10 @@
 {
   "usage_stats": {
+    "request_events_select": "选择 {{timestamp}} 的 {{model}} 请求事件",
+    "request_events_select_all": "全选当前筛选列表",
+    "request_events_delete_selected": "删除选中项（{{count}}）",
+    "request_events_delete_selected_confirm": "确认删除选中的 {{count}} 条请求事件吗？",
+    "request_events_delete_selected_success": "已删除 {{count}} 条请求事件",
     "request_events_request_model": "请求模型",
     "request_events_response_model": "返回模型",
     "request_events_columns": "显示列",

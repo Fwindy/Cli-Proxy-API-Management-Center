@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
-import { IconMinus } from '@/components/usage/UsageIcons';
+import { SelectionCheckbox } from '@/components/ui/SelectionCheckbox';
 import { RequestEventColumnPicker } from './RequestEventColumnPicker';
+import { useRequestEventSelection } from './useRequestEventSelection';
 import {
   getAvailableRequestEventColumns,
   getVisibleRequestEventColumns,
@@ -219,7 +221,7 @@ export function RequestEventsDetailsCard({
   );
   const [localAuthFiles, setLocalAuthFiles] = useState<AuthFileItem[]>([]);
   const [selectedFailureRow, setSelectedFailureRow] = useState<RequestEventRow | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [nextRefreshAtMs, setNextRefreshAtMs] = useState<number | null>(null);
   const [countdownNowMs, setCountdownNowMs] = useState(() => Date.now());
 
@@ -563,36 +565,54 @@ export function RequestEventsDetailsCard({
   );
 
   const renderedRows = useMemo(() => filteredRows.slice(0, MAX_RENDERED_EVENTS), [filteredRows]);
+  const {
+    selectableIds,
+    selectedIds,
+    allSelected,
+    indeterminate,
+    setRowSelected,
+    setAllSelected,
+    clearSelection,
+  } = useRequestEventSelection(filteredRows);
 
-  const handleDeleteRow = useCallback(
-    (row: RequestEventRow) => {
-      const backendId = row.backendId;
-      if (!backendId) return;
-      showConfirmation({
-        title: t('usage_stats.request_events_delete_title'),
-        message: t('usage_stats.request_events_delete_confirm'),
-        confirmText: t('common.confirm'),
-        variant: 'danger',
-        onConfirm: async () => {
-          setDeletingId(backendId);
-          try {
-            await deleteUsageRecords([backendId]);
-            showNotification(t('usage_stats.request_events_delete_success'), 'success');
-          } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : '';
-            showNotification(
-              `${t('usage_stats.request_events_delete_failed')}${message ? `: ${message}` : ''}`,
-              'error'
-            );
-            throw err;
-          } finally {
-            setDeletingId(null);
-          }
-        },
-      });
-    },
-    [deleteUsageRecords, showConfirmation, showNotification, t]
-  );
+  const handleDeleteSelected = useCallback(() => {
+    const ids = [...selectedIds];
+    if (!ids.length || deleting) return;
+    showConfirmation({
+      title: t('usage_stats.request_events_delete_title'),
+      message: t('usage_stats.request_events_delete_selected_confirm', { count: ids.length }),
+      confirmText: t('common.delete'),
+      variant: 'danger',
+      onConfirm: async () => {
+        setDeleting(true);
+        try {
+          await deleteUsageRecords(ids);
+          clearSelection(ids);
+          showNotification(
+            t('usage_stats.request_events_delete_selected_success', { count: ids.length }),
+            'success'
+          );
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : '';
+          showNotification(
+            `${t('usage_stats.request_events_delete_failed')}${message ? `: ${message}` : ''}`,
+            'error'
+          );
+          throw err;
+        } finally {
+          setDeleting(false);
+        }
+      },
+    });
+  }, [
+    clearSelection,
+    deleteUsageRecords,
+    deleting,
+    selectedIds,
+    showConfirmation,
+    showNotification,
+    t,
+  ]);
 
   const handleCloseFailureModal = useCallback(() => {
     setSelectedFailureRow(null);
@@ -709,7 +729,19 @@ export function RequestEventsDetailsCard({
       ) : (
         <>
           <div className={styles.requestEventsMeta}>
-            <span>{t('usage_stats.request_events_count', { count: filteredRows.length })}</span>
+            <div className={styles.requestEventsSelectionActions}>
+              <span>{t('usage_stats.request_events_count', { count: filteredRows.length })}</span>
+              {selectedIds.size > 0 && (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={handleDeleteSelected}
+                  loading={deleting}
+                >
+                  {t('usage_stats.request_events_delete_selected', { count: selectedIds.size })}
+                </Button>
+              )}
+            </div>
             {filteredRows.length > MAX_RENDERED_EVENTS && (
               <span className={styles.requestEventsLimitHint}>
                 {t('usage_stats.request_events_limit_hint', {
@@ -732,7 +764,16 @@ export function RequestEventsDetailsCard({
               </colgroup>
               <thead>
                 <tr>
-                  <th scope="col" aria-label={t('usage_stats.request_events_delete_action')} />
+                  <th scope="col" className={styles.requestEventsSelectionCell}>
+                    <SelectionCheckbox
+                      checked={allSelected}
+                      indeterminate={indeterminate}
+                      onChange={setAllSelected}
+                      disabled={deleting || selectableIds.size === 0}
+                      ariaLabel={t('usage_stats.request_events_select_all')}
+                      title={t('usage_stats.request_events_select_all')}
+                    />
+                  </th>
                   {visibleColumns.map((column) => (
                     <th key={column.id} scope="col">
                       {t(`usage_stats.${column.labelKey}`)}
@@ -743,17 +784,16 @@ export function RequestEventsDetailsCard({
               <tbody>
                 {renderedRows.map((row) => (
                   <tr key={row.id}>
-                    <td className={styles.requestEventsDeleteCell}>
-                      <button
-                        type="button"
-                        className={styles.requestEventsDeleteButton}
-                        onClick={() => handleDeleteRow(row)}
-                        disabled={!row.backendId || deletingId === row.backendId}
-                        title={t('usage_stats.request_events_delete_action')}
-                        aria-label={t('usage_stats.request_events_delete_action')}
-                      >
-                        <IconMinus size={14} />
-                      </button>
+                    <td className={styles.requestEventsSelectionCell}>
+                      <SelectionCheckbox
+                        checked={row.backendId !== null && selectedIds.has(row.backendId)}
+                        onChange={(checked) => setRowSelected(row.backendId, checked)}
+                        disabled={!row.backendId || deleting}
+                        ariaLabel={t('usage_stats.request_events_select', {
+                          timestamp: row.timestampLabel,
+                          model: row.model,
+                        })}
+                      />
                     </td>
                     {visibleColumnIds.has('timestamp') && (
                       <td title={row.timestamp} className={styles.requestEventsTimestamp}>

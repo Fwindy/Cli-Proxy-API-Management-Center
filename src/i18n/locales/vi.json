@@ -1,5 +1,10 @@
 {
   "usage_stats": {
+    "request_events_select": "Chọn sự kiện yêu cầu {{model}} lúc {{timestamp}}",
+    "request_events_select_all": "Chọn tất cả sự kiện đã lọc",
+    "request_events_delete_selected": "Xóa mục đã chọn ({{count}})",
+    "request_events_delete_selected_confirm": "Xóa {{count}} sự kiện yêu cầu đã chọn?",
+    "request_events_delete_selected_success": "Đã xóa {{count}} sự kiện yêu cầu",
     "request_events_request_model": "Mô hình yêu cầu",
     "request_events_response_model": "Mô hình phản hồi",
     "request_events_columns": "Hiển thị cột",

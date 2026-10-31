@@ -1,5 +1,10 @@
 {
   "usage_stats": {
+    "request_events_select": "Выбрать событие запроса {{model}} в {{timestamp}}",
+    "request_events_select_all": "Выбрать все отфильтрованные события",
+    "request_events_delete_selected": "Удалить выбранные ({{count}})",
+    "request_events_delete_selected_confirm": "Удалить выбранные события запросов: {{count}}?",
+    "request_events_delete_selected_success": "Удалено событий запросов: {{count}}",
     "request_events_request_model": "Модель запроса",
     "request_events_response_model": "Модель ответа",
     "request_events_columns": "Показать столбцы",

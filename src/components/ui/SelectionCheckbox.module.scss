@@ -80,6 +80,14 @@
   stroke-width: 2.4;
 }
 
+.boxIndeterminate::after {
+  content: '';
+  width: 10px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 1px;
+}
+
 .label {
   color: var(--text-primary);
   font-size: 14px;

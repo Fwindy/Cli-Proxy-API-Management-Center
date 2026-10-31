@@ -1,5 +1,10 @@
 {
   "usage_stats": {
+    "request_events_select": "{{timestamp}} tarihindeki {{model}} istek olayını seç",
+    "request_events_select_all": "Filtrelenen tüm olayları seç",
+    "request_events_delete_selected": "Seçilenleri sil ({{count}})",
+    "request_events_delete_selected_confirm": "Seçilen {{count}} istek olayı silinsin mi?",
+    "request_events_delete_selected_success": "{{count}} istek olayı silindi",
     "request_events_request_model": "İstek modeli",
     "request_events_response_model": "Yanıt modeli",
     "request_events_columns": "Sütunları göster",

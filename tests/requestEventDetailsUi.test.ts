@@ -5,6 +5,7 @@ import { I18nextProvider } from 'react-i18next';
 import i18n from '@/i18n';
 import { RequestEventsDetailsCard } from '@/components/usage/RequestEventsDetailsCard';
 import { RequestEventColumnOptions } from '@/components/usage/RequestEventColumnPicker';
+import { SelectionCheckbox } from '@/components/ui/SelectionCheckbox';
 import {
   getAvailableRequestEventColumns,
   getVisibleRequestEventColumns,
@@ -36,6 +37,7 @@ const renderDetails = (hidden: unknown = []) => {
                 'requested-model': {
                   details: [
                     {
+                      id: 'fixture-event',
                       timestamp: '2026-10-27T10:00:00Z',
                       response_model: 'upstream-model-20261027',
                       tokens: { input_tokens: 5 },
@@ -67,6 +69,35 @@ const headers = (html: string) =>
   Array.from(tableMarkup(html).matchAll(/<th\b[^>]*>(.*?)<\/th>/g), (match) => match[1]);
 
 describe('request event details UI', () => {
+  test('renders a select-all checkbox and row checkboxes, disabling events without backend IDs', () => {
+    const html = renderDetails();
+    const table = tableMarkup(html);
+    const header = table.match(/<thead>([\s\S]*?)<\/thead>/)?.[1] ?? '';
+    const body = table.match(/<tbody>([\s\S]*?)<\/tbody>/)?.[1] ?? '';
+
+    expect(header).toContain('type="checkbox"');
+    expect(header).toContain('aria-label="Select all filtered events"');
+    expect(header).not.toContain('disabled=""');
+    expect(body.match(/type="checkbox"/g)).toHaveLength(2);
+    expect(body.match(/aria-label="Select request event[^"\n]*"/g)).toHaveLength(2);
+    expect(body.match(/disabled=""/g)).toHaveLength(1);
+    expect(table).not.toContain('aria-label="Delete request event"');
+    expect(html).not.toContain('Delete selected');
+  });
+
+  test('exposes a partially selected header checkbox to assistive technology', () => {
+    const html = render(
+      createElement(SelectionCheckbox, {
+        checked: false,
+        indeterminate: true,
+        onChange: () => {},
+        ariaLabel: 'Select all filtered events',
+      })
+    );
+    expect(html).toContain('type="checkbox"');
+    expect(html).toContain('aria-checked="mixed"');
+  });
+
   test('renders request and response model headers, values, and an unknown-model placeholder', () => {
     const html = renderDetails();
     expect(headers(html).slice(1, 4)).toEqual(['Timestamp', 'Request Model', 'Response Model']);

@@ -1122,6 +1122,13 @@
   color: var(--text-tertiary);
 }
 
+.requestEventsSelectionActions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  flex-wrap: wrap;
+}
+
 .requestEventsTableWrapper {
   overflow: auto;
   max-height: 460px;
@@ -1156,42 +1163,11 @@
   table-layout: fixed;
 }
 
-.requestEventsDeleteCell {
-  width: 36px;
+.requestEventsTable .requestEventsSelectionCell {
+  padding-left: $spacing-sm;
+  padding-right: $spacing-sm;
   text-align: center;
-}
-
-.requestEventsDeleteButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: 1px solid transparent;
-  border-radius: $radius-full;
-  color: var(--danger-color, #dc2626);
-  background: transparent;
-  cursor: pointer;
-  transition:
-    background-color 0.16s ease,
-    border-color 0.16s ease,
-    opacity 0.16s ease;
-
-  &:hover:not(:disabled) {
-    border-color: color-mix(in srgb, var(--danger-color, #dc2626) 32%, transparent);
-    background: color-mix(in srgb, var(--danger-color, #dc2626) 10%, transparent);
-  }
-
-  &:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger-color, #dc2626) 35%, transparent);
-  }
-
-  &:disabled {
-    cursor: not-allowed;
-    opacity: 0.35;
-  }
+  vertical-align: middle;
 }
 
 .requestEventsTimestamp {

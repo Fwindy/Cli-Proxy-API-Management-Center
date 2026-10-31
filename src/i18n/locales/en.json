@@ -1,5 +1,10 @@
 {
   "usage_stats": {
+    "request_events_select": "Select request event for {{model}} at {{timestamp}}",
+    "request_events_select_all": "Select all filtered events",
+    "request_events_delete_selected": "Delete selected ({{count}})",
+    "request_events_delete_selected_confirm": "Delete {{count}} selected request events?",
+    "request_events_delete_selected_success": "Deleted {{count}} request events",
     "request_events_request_model": "Request Model",
     "request_events_response_model": "Response Model",
     "request_events_columns": "Show columns",

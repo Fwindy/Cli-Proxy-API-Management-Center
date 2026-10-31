@@ -1,5 +1,10 @@
 {
   "usage_stats": {
+    "request_events_select": "{{timestamp}}의 {{model}} 요청 이벤트 선택",
+    "request_events_select_all": "필터링된 모든 이벤트 선택",
+    "request_events_delete_selected": "선택 항목 삭제 ({{count}})",
+    "request_events_delete_selected_confirm": "선택한 요청 이벤트 {{count}}개를 삭제하시겠습니까?",
+    "request_events_delete_selected_success": "요청 이벤트 {{count}}개 삭제됨",
     "request_events_request_model": "요청 모델",
     "request_events_response_model": "응답 모델",
     "request_events_columns": "열 표시",
