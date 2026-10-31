@@ -319,7 +319,7 @@ function processData(
   settings: SyncSettings,
 ): Record<string, SyncedPrice> {
   const newPrices: Record<string, SyncedPrice> = {};
-  const chosenProviders: Record<string, { name: string; rank: number }> = {};
+  const chosenProviders: Record<string, { name: string; rank: number; exact: boolean }> = {};
 
   for (const [providerKey, providerVal] of Object.entries(rawData)) {
     const provider = providerVal as Record<string, unknown> | null;
@@ -347,11 +347,14 @@ function processData(
         settings.ignoredModelNameSuffixes,
         settings.modelNameMappings,
       );
-      const matchedExacts = allowed.exactNames.has(exactName)
-        ? [exactName]
-        : normalisedName && allowed.normalisedNames.has(normalisedName)
+      // An exact base-name match must also fill the configured suffix variants.
+      const matchedExacts =
+        normalisedName && allowed.normalisedNames.has(normalisedName)
           ? Array.from(allowed.normalisedToExact.get(normalisedName) ?? [])
           : [];
+      if (allowed.exactNames.has(exactName) && !matchedExacts.includes(exactName)) {
+        matchedExacts.push(exactName);
+      }
 
       if (matchedExacts.length === 0) continue;
 
@@ -363,7 +366,12 @@ function processData(
 
       for (const matched of matchedExacts) {
         const existing = chosenProviders[matched];
-        if (existing && existing.rank < rank) continue;
+        const exact = matched === exactName;
+        if (
+          existing &&
+          (existing.rank < rank || (existing.rank === rank && existing.exact && !exact))
+        )
+          continue;
 
         const contextTiers = parseContextTiers(cost);
         newPrices[matched] = {
@@ -373,7 +381,7 @@ function processData(
           cacheRead: formatPrice((cost as Record<string, unknown>).cache_read),
           ...(contextTiers ? { contextTiers } : {}),
         };
-        chosenProviders[matched] = { name: providerName, rank };
+        chosenProviders[matched] = { name: providerName, rank, exact };
       }
     }
   }
