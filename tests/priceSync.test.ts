@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, spyOn, test } from 'bun:test';
-import { getDefaultSyncSettings, syncPrices, type SyncSettings } from '@/utils/priceSync';
+import {
+  getDefaultSyncSettings,
+  loadSyncSettings,
+  syncPrices,
+  type SyncSettings,
+} from '@/utils/priceSync';
 
 const originalWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+const originalLocalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
 const price = { input: 2, output: 12, cache_write: 2.5, cache_read: 0.2 };
 
 beforeEach(() => {
@@ -14,6 +20,9 @@ beforeEach(() => {
 afterEach(() => {
   if (originalWindow) Object.defineProperty(globalThis, 'window', originalWindow);
   else Reflect.deleteProperty(globalThis, 'window');
+  if (originalLocalStorage) {
+    Object.defineProperty(globalThis, 'localStorage', originalLocalStorage);
+  } else Reflect.deleteProperty(globalThis, 'localStorage');
 });
 
 async function syncFixture(
@@ -30,6 +39,42 @@ async function syncFixture(
 }
 
 describe('price sync model matching', () => {
+  test('prefers official xai pricing over unlisted resellers by default', async () => {
+    const result = await syncFixture(['grok-fixture'], {
+      xai: { models: { 'grok-fixture': { cost: price } } },
+      reseller: { models: { 'grok-fixture': { cost: { input: 99 } } } },
+    });
+
+    expect(result.prices['grok-fixture'].input).toBe(2);
+  });
+
+  test('upgrades the saved default priority while preserving other sync settings', () => {
+    const settings = {
+      providerPriority: ['openai', 'google', 'anthropic'],
+      ignoredModelNameSuffixes: ['-high'],
+      modelNameMappings: [{ source: 'local-model', target: 'source-model' }],
+    };
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: { getItem: () => JSON.stringify(settings) },
+    });
+
+    expect(loadSyncSettings()).toEqual({
+      ...settings,
+      providerPriority: ['openai', 'google', 'anthropic', 'xai'],
+    });
+  });
+
+  test('preserves saved custom provider priorities', () => {
+    const providerPriority = ['anthropic', 'google', 'openai'];
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: { getItem: () => JSON.stringify({ providerPriority }) },
+    });
+
+    expect(loadSyncSettings().providerPriority).toEqual(providerPriority);
+  });
+
   test('syncs base and ignored-suffix variants together when only the base model has a price', async () => {
     const result = await syncFixture(
       ['gemini-4-argon', 'gemini-4-argon-high', 'gemini-4-argon-low'],

@@ -7,6 +7,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import type { ContextTierPrice, ModelPrice } from '@/utils/usage';
 import {
+  DEFAULT_PROVIDER_PRIORITY,
   loadSyncSettings,
   saveSyncSettings,
   sanitizeSyncSettings,
@@ -661,7 +662,7 @@ export function PriceSettingsCard({
               value={providerPriorityText}
               onChange={(e) => setProviderPriorityText(e.target.value)}
               disabled={syncPending}
-              placeholder={'openai\ngoogle\nanthropic'}
+              placeholder={DEFAULT_PROVIDER_PRIORITY.join('\n')}
               rows={4}
             />
           </div>

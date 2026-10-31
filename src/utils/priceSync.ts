@@ -19,6 +19,7 @@ export const DEFAULT_PROVIDER_PRIORITY: readonly string[] = Object.freeze([
   'openai',
   'google',
   'anthropic',
+  'xai',
 ]);
 
 export const DEFAULT_IGNORED_SUFFIXES: readonly string[] = Object.freeze([
@@ -174,7 +175,16 @@ export function loadSyncSettings(): SyncSettings {
   try {
     const raw = localStorage.getItem(SYNC_SETTINGS_STORAGE_KEY);
     const parsed = parseJsonSafely(raw) as Partial<SyncSettings> | null;
-    return sanitizeSyncSettings(parsed);
+    const settings = sanitizeSyncSettings(parsed);
+    const previousDefaultPriority = ['openai', 'google', 'anthropic'];
+    // Upgrade the previous default without changing custom provider priorities.
+    if (
+      settings.providerPriority.length === previousDefaultPriority.length &&
+      settings.providerPriority.every((provider, index) => provider === previousDefaultPriority[index])
+    ) {
+      settings.providerPriority = [...DEFAULT_PROVIDER_PRIORITY];
+    }
+    return settings;
   } catch {
     return getDefaultSyncSettings();
   }
