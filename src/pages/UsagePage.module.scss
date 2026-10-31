@@ -1112,13 +1112,18 @@
   align-items: center;
   justify-content: space-between;
   gap: $spacing-sm;
+  height: 28px;
   margin-bottom: $spacing-xs;
   font-size: 12px;
   color: var(--text-secondary);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .requestEventsLimitHint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text-tertiary);
 }
 
@@ -1126,7 +1131,31 @@
   display: flex;
   align-items: center;
   gap: $spacing-sm;
-  flex-wrap: wrap;
+  height: 100%;
+  min-width: 0;
+  max-width: 100%;
+  flex-shrink: 0;
+  white-space: nowrap;
+
+  > span {
+    flex-shrink: 0;
+  }
+}
+
+.requestEventsDeleteButton:global(.btn.btn-sm) {
+  height: 24px;
+  min-width: 0;
+  padding: 2px 8px;
+  gap: $spacing-xs;
+  border-radius: $radius-sm;
+  font-size: 12px;
+  line-height: 18px;
+
+  > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .requestEventsTableWrapper {
@@ -1168,6 +1197,12 @@
   padding-right: $spacing-sm;
   text-align: center;
   vertical-align: middle;
+
+  // Keep checkbox contents from changing the cell's inline baseline.
+  > label {
+    display: flex;
+    justify-content: center;
+  }
 }
 
 .requestEventsTimestamp {

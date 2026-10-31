@@ -735,6 +735,7 @@ export function RequestEventsDetailsCard({
                 <Button
                   variant="danger"
                   size="sm"
+                  className={styles.requestEventsDeleteButton}
                   onClick={handleDeleteSelected}
                   loading={deleting}
                 >
@@ -743,7 +744,10 @@ export function RequestEventsDetailsCard({
               )}
             </div>
             {filteredRows.length > MAX_RENDERED_EVENTS && (
-              <span className={styles.requestEventsLimitHint}>
+              <span
+                className={styles.requestEventsLimitHint}
+                title={t('usage_stats.request_events_limit_hint', { shown: MAX_RENDERED_EVENTS })}
+              >
                 {t('usage_stats.request_events_limit_hint', {
                   shown: MAX_RENDERED_EVENTS,
                 })}
