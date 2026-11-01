@@ -22,7 +22,7 @@ export interface QuotaClassMap {
   quotaAmount: string;
   quotaMessage: string;
   // 套餐 chip 行（codex 命名，claude/antigravity/kimi/xai 复用；
-  // premium/elite 对应卡面档位 premium/flagship，见 cardTier.ts）
+  // premium=金卡、elite=和田玉金镶玉 —— 均为定稿资产，样式不可改；档位判定见 cardTier.ts）
   codexPlan: string;
   codexPlanItem: string;
   codexPlanLabel: string;

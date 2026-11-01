@@ -203,13 +203,28 @@ button.quotaMessageAction {
   color: var(--text-secondary);
 }
 
-/* 高档套餐：与额度页卡面同一强调色，只换文字颜色。 */
-.premiumPlanValue,
+.premiumPlanValue {
+  font-family: $font-mono;
+  font-size: $quota-font-size;
+  font-weight: 650;
+  color: var(--amber-text);
+}
+
+/* 旗舰档（紧凑版）：与金卡档 premiumPlanValue 同构，只换颜色 —— 这一行的兄弟 chip
+ * 全是朴素 mono 文本，镶一枚发光徽章在 11px 行里只是吵，不是贵。
+ *
+ * 色值与额度页同族（和田玉金镶玉，2026-11-01 起替代液态铂金）：
+ * 浅色取青玉墨 #4f5a3c（对白底约 7:1）；深色取羊脂白 #e6dec4，
+ * 两者都是玉的颜色，与 amber 的金色明确区分。 */
 .elitePlanValue {
   font-family: $font-mono;
   font-size: $quota-font-size;
   font-weight: 650;
-  color: var(--plan-accent-text);
+  color: #4f5a3c;
+}
+
+:global([data-theme='dark']) .elitePlanValue {
+  color: #e6dec4;
 }
 
 /* ---------- Antigravity 分组 ---------- */

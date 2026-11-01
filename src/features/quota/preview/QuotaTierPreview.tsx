@@ -1,5 +1,5 @@
 /**
- * DEV-ONLY preview: quota card tiers (standard / premium / flagship).
+ * DEV-ONLY preview: plan tiers (standard / premium=gold / flagship=Hetian jade with gold bezel).
  *
  * Registered in App.tsx only when `import.meta.env.DEV` is true, outside the
  * auth guard, so it can be opened without a backend or real accounts:
@@ -225,8 +225,7 @@ const buildAccounts = (): MockAccount[] => [
     quota: { status: 'error', windows: [], error: 'HTTP 401' } as CodexQuotaState,
   },
   {
-    // Idle card: the plan comes from the auth file itself, so the suite shows
-    // before any quota is read.
+    // Idle card: no plan styling until quota data arrives.
     entry: {
       type: 'codex',
       file: file('codex-pro500-idle.json', 'codex', { plan_type: 'promax' }),
@@ -254,7 +253,7 @@ export function QuotaTierPreview() {
         <div className={styles.titleBlock}>
           <h1 className={styles.title}>额度卡片档位</h1>
           <p className={styles.subtitle}>
-            开发环境预览，模拟数据。标准间 → 行政间 → 套房：档差只来自材质与光。
+            开发环境预览，模拟数据。套餐档位：标准 → 金卡 → 和田玉金镶玉。
           </p>
         </div>
         <div className={styles.controls}>

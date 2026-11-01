@@ -1,31 +1,21 @@
 /**
- * 额度卡片档位：跨 provider 的统一阶梯。卡面（QuotaCard）与套餐文字
- * （*QuotaBody 的 plan value class）共用这里的判定，两者不会各说各话。
+ * 套餐档位：跨 provider 的统一阶梯，决定套餐文字的样式
+ * （flagship = 和田玉金镶玉 elitePlanValue，premium = 金卡 premiumPlanValue）。
  *
- * 规则：各家最高个人档 = 套房；其下的付费个人档 = 行政间；入门付费档、
- * 团队/商业套餐与免费档 = 标准间。
+ * 规则：各家最高个人档 = flagship；其下的付费个人档 = premium；入门付费档、
+ * 团队/商业套餐与免费档 = standard。
  *
- * - flagship 套房：Codex Pro 500、Kimi Allegro、Claude Max 20x、Antigravity Ultra、SuperGrok Heavy
- * - premium  行政间：Codex Pro 200 / Pro 100、Claude Max 5x / Max（未区分）、
+ * - flagship：Codex Pro 500、Kimi Allegro、Claude Max 20x、Antigravity Ultra、SuperGrok Heavy
+ * - premium： Codex Pro 200 / Pro 100、Claude Max 5x / Max（未区分）、
  *            Kimi Allegretto、Antigravity Ultra Lite、SuperGrok、xAI 付费 API
- * - standard 标准间：Plus、Team、Business（含 Business Premium）、Pro（Claude /
+ * - standard：Plus、Team、Business（含 Business Premium）、Pro（Claude /
  *            Antigravity）、Kimi Moderato / Andante、Free，以及档位未知
  *
  * React-free，便于单测。
  */
 
-import type {
-  AuthFileItem,
-  AntigravityQuotaState,
-  ClaudeQuotaState,
-  CodexQuotaState,
-  KimiQuotaState,
-  XaiBillingSummary,
-  XaiQuotaState,
-} from '@/types';
-import { resolveCodexPlanType, resolvePlanTier } from '@/utils/quota';
-import type { QuotaCardState } from './providers';
-import type { QuotaProviderType } from './providers/types';
+import type { XaiBillingSummary } from '@/types';
+import { resolvePlanTier } from '@/utils/quota';
 import type { QuotaClassMap } from './types';
 
 export type QuotaCardTier = 'standard' | 'premium' | 'flagship';
@@ -77,42 +67,7 @@ export function resolveXaiCardTier(billing: XaiBillingSummary): QuotaCardTier {
   return 'standard';
 }
 
-/** 数据到达后的档位；非 success 返回 null（调用方应沿用上一次的档位）。 */
-export function resolveQuotaCardTier(
-  type: QuotaProviderType,
-  quota: QuotaCardState | undefined
-): QuotaCardTier | null {
-  if (!quota || quota.status !== 'success') return null;
-  switch (type) {
-    case 'codex':
-      return resolveCodexCardTier((quota as CodexQuotaState).planType);
-    case 'kimi':
-      return resolveKimiCardTier((quota as KimiQuotaState).planName);
-    case 'antigravity':
-      return resolveAntigravityCardTier((quota as AntigravityQuotaState).subscription?.plan);
-    case 'claude':
-      return resolveClaudeCardTier((quota as ClaudeQuotaState).planType);
-    case 'xai': {
-      const billing = (quota as XaiQuotaState).billing;
-      return billing ? resolveXaiCardTier(billing) : 'standard';
-    }
-    default:
-      return 'standard';
-  }
-}
-
-/**
- * 数据到达前的档位猜测：只有 Codex 的认证文件自带套餐（id_token），
- * 让 Pro 200 卡片从空闲态起就是套房，避免数据到达时整卡由浅翻深。
- */
-export function resolveInitialQuotaCardTier(
-  type: QuotaProviderType,
-  file: AuthFileItem
-): QuotaCardTier {
-  return type === 'codex' ? resolveCodexCardTier(resolveCodexPlanType(file)) : 'standard';
-}
-
-/** 套餐文字的样式：与卡面同档。 */
+/** 档位对应的套餐文字样式。 */
 export function planValueClassForTier(tier: QuotaCardTier, classes: QuotaClassMap): string {
   if (tier === 'flagship') return classes.elitePlanValue;
   if (tier === 'premium') return classes.premiumPlanValue;

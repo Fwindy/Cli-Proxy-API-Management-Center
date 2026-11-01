@@ -5,9 +5,7 @@ import {
   resolveAntigravityCardTier,
   resolveClaudeCardTier,
   resolveCodexCardTier,
-  resolveInitialQuotaCardTier,
   resolveKimiCardTier,
-  resolveQuotaCardTier,
   resolveXaiCardTier,
 } from '@/features/quota/cardTier';
 import { QUOTA_CLASS_KEYS, bindQuotaClasses } from '@/features/quota/types';
@@ -33,8 +31,8 @@ const billing = (overrides: Partial<XaiBillingSummary> = {}): XaiBillingSummary 
   ...overrides,
 });
 
-describe('quota card tier ladder', () => {
-  test('Codex: Pro 500 is the suite, Pro 200 and Pro 100 are premium, Business ranks with Plus', () => {
+describe('quota plan tier ladder', () => {
+  test('Codex: Pro 500 is flagship, Pro 200 and Pro 100 are premium, Business ranks with Plus', () => {
     expect(resolveCodexCardTier('promax')).toBe('flagship');
     expect(resolveCodexCardTier('pro')).toBe('premium');
     expect(resolveCodexCardTier('prolite')).toBe('premium');
@@ -52,25 +50,22 @@ describe('quota card tier ladder', () => {
     const expected = resolveCodexCardTier(codexPlan);
     expect(resolveKimiCardTier(planName)).toBe(expected);
     expect(resolveKimiCardTier(` ${planName.toUpperCase()} `)).toBe(expected);
-    expect(resolveQuotaCardTier('kimi', { status: 'success', rows: [], planName })).toBe(expected);
   });
 
-  test('Kimi Andante and unknown names stay standard, and pending reads preserve the tier', () => {
+  test('Kimi Andante and unknown names stay standard', () => {
     for (const name of ['Andante', 'Vivace', 'Allegro Plus', '', null, undefined]) {
       expect(resolveKimiCardTier(name)).toBe('standard');
     }
-    expect(resolveQuotaCardTier('kimi', { status: 'loading' })).toBeNull();
-    expect(resolveQuotaCardTier('kimi', { status: 'error' })).toBeNull();
   });
 
-  test('Antigravity: Ultra is the suite, Ultra Lite is premium', () => {
+  test('Antigravity: Ultra is flagship, Ultra Lite is premium', () => {
     expect(resolveAntigravityCardTier('ultra')).toBe('flagship');
     expect(resolveAntigravityCardTier(' Ultra-Lite ')).toBe('premium');
     expect(resolveAntigravityCardTier('pro')).toBe('standard');
     expect(resolveAntigravityCardTier(null)).toBe('standard');
   });
 
-  test('Claude: Max 20x is the suite, Max 5x and an unspecified Max are premium', () => {
+  test('Claude: Max 20x is flagship, Max 5x and an unspecified Max are premium', () => {
     expect(resolveClaudeCardTier('plan_max20')).toBe('flagship');
     expect(resolveClaudeCardTier('plan_max5')).toBe('premium');
     expect(resolveClaudeCardTier('plan_max')).toBe('premium');
@@ -97,33 +92,7 @@ describe('quota card tier ladder', () => {
     expect(resolveXaiCardTier(billing({ monthlyLimitCents: 3_000 }))).toBe('standard');
   });
 
-  test('only a successful read decides the tier', () => {
-    expect(resolveQuotaCardTier('codex', undefined)).toBeNull();
-    expect(resolveQuotaCardTier('codex', { status: 'loading' })).toBeNull();
-    expect(resolveQuotaCardTier('codex', { status: 'error' })).toBeNull();
-    expect(resolveQuotaCardTier('codex', { status: 'success', planType: 'promax' } as never)).toBe(
-      'flagship'
-    );
-    expect(resolveQuotaCardTier('kimi', { status: 'success' })).toBe('standard');
-    expect(resolveQuotaCardTier('xai', { status: 'success', billing: null } as never)).toBe(
-      'standard'
-    );
-  });
-
-  test('a Codex auth file seeds the tier before any quota is read', () => {
-    expect(resolveInitialQuotaCardTier('codex', { name: 'a.json', plan_type: 'promax' })).toBe(
-      'flagship'
-    );
-    expect(resolveInitialQuotaCardTier('codex', { name: 'a.json', plan_type: 'pro' })).toBe(
-      'premium'
-    );
-    expect(resolveInitialQuotaCardTier('codex', { name: 'b.json' })).toBe('standard');
-    expect(resolveInitialQuotaCardTier('claude', { name: 'c.json', plan_type: 'pro' })).toBe(
-      'standard'
-    );
-  });
-
-  test('the plan text class follows the card tier', () => {
+  test('the plan text class follows the tier', () => {
     expect(planValueClassForTier('flagship', classes)).toBe('elitePlanValue');
     expect(planValueClassForTier('premium', classes)).toBe('premiumPlanValue');
     expect(planValueClassForTier('standard', classes)).toBe('codexPlanValue');
