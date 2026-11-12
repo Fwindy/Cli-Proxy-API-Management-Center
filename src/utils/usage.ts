@@ -15,6 +15,7 @@ import {
 import { maskApiKey } from './format';
 import { parseTimestampMs } from './timestamp';
 import { resolveTierMultiplier } from './tierMultiplier';
+import { getBillableOutputTokens } from './usage/billableOutputTokens';
 
 export type { DurationFormatOptions, LatencyStats } from './usage/latency';
 export {
@@ -106,6 +107,7 @@ export interface UsageDetail {
   thinking?: UsageThinking | null;
   reasoning_effort?: string;
   provider?: string;
+  executor_type?: string;
   service_tier?: string;
   failed: boolean;
   failure_status_code?: number;
@@ -325,16 +327,21 @@ const normalizeFailBody = (value: unknown): string | undefined => {
 };
 
 /**
- * 提取请求明细中的透传元信息(provider / service_tier / failure_status_code /
- * failure_body)。provider 用于计费时区分输入口径（Claude 加法 vs 其它减法）。
+ * 提取请求明细中的透传元信息。provider / executor_type 用于区分输入、输出计费口径。
  */
 const extractUsageStatusFields = (
   detail: Record<string, unknown>
 ): Pick<
   UsageDetail,
-  'provider' | 'service_tier' | 'response_model' | 'failure_status_code' | 'failure_body'
+  | 'provider'
+  | 'executor_type'
+  | 'service_tier'
+  | 'response_model'
+  | 'failure_status_code'
+  | 'failure_body'
 > => {
   const provider = normalizeProvider(detail.provider);
+  const executorType = normalizeProvider(detail.executor_type);
   const serviceTier = normalizeServiceTier(detail.service_tier ?? detail.serviceTier);
   const responseModel =
     typeof detail.response_model === 'string' ? detail.response_model.trim() : '';
@@ -342,6 +349,7 @@ const extractUsageStatusFields = (
   const failBody = normalizeFailBody(detail.failure_body ?? detail.fail_body);
   return {
     ...(provider ? { provider } : {}),
+    ...(executorType ? { executor_type: executorType } : {}),
     ...(serviceTier ? { service_tier: serviceTier } : {}),
     ...(responseModel ? { response_model: responseModel } : {}),
     ...(failStatusCode !== undefined ? { failure_status_code: failStatusCode } : {}),
@@ -1292,6 +1300,7 @@ export function calculateCacheHitRatio(params: {
  * 缓存读取按 cachedTokens（cached_tokens/cache_tokens 归一化值）计费，缓存
  * 创建按 cache_creation_tokens 计费。价格档按「纯输入 + 缓存读取 + 缓存创建」
  * 命中上下文阶梯（非 Claude 恰好等于 input_tokens），最后统一乘 Tier 倍率。
+ * Gemini 原生通道的输出费用包含独立上报的 reasoning_tokens；已包含推理的通道不重复相加。
  */
 export function calculateCost(
   detail: UsageDetail,
@@ -1304,15 +1313,12 @@ export function calculateCost(
   }
   const tokens = detail.tokens;
   const rawInputTokens = Number(tokens.input_tokens);
-  const rawCompletionTokens = Number(tokens.output_tokens);
   const rawCachedTokensPrimary = Number(tokens.cached_tokens);
   const rawCachedTokensAlternate = Number(tokens.cache_tokens);
   const rawCacheCreationTokens = Number(tokens.cache_creation_tokens);
 
   const inputTokens = Number.isFinite(rawInputTokens) ? Math.max(rawInputTokens, 0) : 0;
-  const completionTokens = Number.isFinite(rawCompletionTokens)
-    ? Math.max(rawCompletionTokens, 0)
-    : 0;
+  const completionTokens = getBillableOutputTokens(detail);
   // 缓存读取通用字段：cached_tokens / cache_tokens。
   const cacheReadTokens = Math.max(
     Number.isFinite(rawCachedTokensPrimary) ? Math.max(rawCachedTokensPrimary, 0) : 0,
