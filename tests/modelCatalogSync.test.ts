@@ -81,6 +81,21 @@ describe('global model catalog sync', () => {
     }
   });
 
+  test('pins a scoped catalog update to its owning management connection', async () => {
+    const client = apiClient.captureConnection();
+    const post = spyOn(client, 'post').mockResolvedValue({ changed_providers: [] });
+    const capture = spyOn(apiClient, 'captureConnection').mockReturnValue(client);
+    const isCurrent = () => true;
+    try {
+      expect(await modelsApi.refreshCatalog(isCurrent)).toEqual({ changedProviders: [] });
+      expect(capture).toHaveBeenCalledWith(isCurrent);
+      expect(post).toHaveBeenCalledWith('/models/refresh');
+    } finally {
+      capture.mockRestore();
+      post.mockRestore();
+    }
+  });
+
   for (const providers of [[], ['claude', 'codex']]) {
     test(`invalidates and refetches even when unchanged: ${providers}`, async () => {
       const h = harness();
@@ -151,13 +166,17 @@ describe('global model catalog sync', () => {
       page.indexOf('const invalidateDerivedCaches')
     );
     expect(callback).toContain('invalidateModels()');
-    expect(callback).toContain('setModelCatalogVersion');
     expect(callback).toContain('void showModels(');
     expect(callback).not.toContain('invalidateDerivedCaches');
-    const oauth = read('src/features/authFiles/hooks/useAuthFilesOauth.tsx');
-    expect(oauth).toContain('[providerList, viewMode, modelCatalogVersion]');
+    // The alias diagram left this page: the model rules workspace fetches provider catalogs
+    // fresh on mount, so the page no longer keeps a catalog version to re-trigger them.
+    expect(page).not.toContain('modelCatalogVersion');
     for (const locale of ['en', 'zh-CN', 'zh-TW', 'ru', 'vi', 'ko', 'tr']) {
-      const messages = JSON.parse(read(`src/i18n/locales/${locale}.json`)).auth_files;
+      const translations = JSON.parse(read(`src/i18n/locales/${locale}.json`));
+      const system = translations.system_info;
+      expect(system.models_desc).toContain(system.models_refresh_button);
+      expect(system.models_desc).toContain(system.models_catalog_refresh_button);
+      const messages = translations.auth_files;
       expect(messages).not.toHaveProperty('sync_catalog_tooltip');
       for (const key of ['button', 'success', 'unchanged', 'failed']) {
         expect(messages[`sync_catalog_${key}`]).toBeTruthy();
