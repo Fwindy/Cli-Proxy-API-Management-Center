@@ -66,7 +66,7 @@ describe('model rules save connection isolation', () => {
 describe('model rules unsaved guard after reload failure', () => {
   for (const page of ['AuthFilesOAuthExcludedEditPage', 'AuthFilesOAuthModelAliasEditPage']) {
     test(`${page} retains dirty state independently of reload status`, () => {
-      const source = readFileSync(`src/pages/${page}.tsx`, 'utf8');
+      const source = readFileSync(`src/pages/${page}.tsx`, 'utf8').replace(/\r\n/g, '\n');
       const expression = source.match(/const isDirty = (.*);/)?.[1];
       expect(expression).toBeDefined();
       const isDirty = new Function('data', 'dirtyProviders', `return ${expression};`);

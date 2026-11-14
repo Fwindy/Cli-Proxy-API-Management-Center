@@ -15,7 +15,9 @@ import {
 import { maskApiKey } from './format';
 import { parseTimestampMs } from './timestamp';
 import { resolveTierMultiplier } from './tierMultiplier';
-import { getBillableOutputTokens } from './usage/billableOutputTokens';
+import { calculateOutputTps, getUsageOutputTokens } from './usage/outputTokens';
+
+export { calculateOutputTps, getUsageOutputTokens } from './usage/outputTokens';
 
 export type { DurationFormatOptions, LatencyStats } from './usage/latency';
 export {
@@ -1300,7 +1302,7 @@ export function calculateCacheHitRatio(params: {
  * 缓存读取按 cachedTokens（cached_tokens/cache_tokens 归一化值）计费，缓存
  * 创建按 cache_creation_tokens 计费。价格档按「纯输入 + 缓存读取 + 缓存创建」
  * 命中上下文阶梯（非 Claude 恰好等于 input_tokens），最后统一乘 Tier 倍率。
- * Gemini 原生通道的输出费用包含独立上报的 reasoning_tokens；已包含推理的通道不重复相加。
+ * 输出计数与 TPS 共用通道口径，包含独立上报的思考 Token；已包含推理的通道不重复相加。
  */
 export function calculateCost(
   detail: UsageDetail,
@@ -1318,7 +1320,7 @@ export function calculateCost(
   const rawCacheCreationTokens = Number(tokens.cache_creation_tokens);
 
   const inputTokens = Number.isFinite(rawInputTokens) ? Math.max(rawInputTokens, 0) : 0;
-  const completionTokens = getBillableOutputTokens(detail);
+  const completionTokens = getUsageOutputTokens(detail);
   // 缓存读取通用字段：cached_tokens / cache_tokens。
   const cacheReadTokens = Math.max(
     Number.isFinite(rawCachedTokensPrimary) ? Math.max(rawCachedTokensPrimary, 0) : 0,
@@ -1634,10 +1636,7 @@ export function getModelStats(
           const detailRecord = isRecord(detail) ? detail : null;
           const latencyMs = extractLatencyMs(detailRecord);
           const firstByteLatencyMs = extractFirstByteLatencyMs(detailRecord);
-          const tokens = isRecord(detailRecord?.tokens) ? detailRecord.tokens : null;
-          const outputTokensRaw = Number(tokens?.output_tokens);
-          const outputTokens = Number.isFinite(outputTokensRaw) ? Math.max(outputTokensRaw, 0) : 0;
-          const tps = latencyMs && latencyMs > 0 ? outputTokens / (latencyMs / 1000) : null;
+          const tps = calculateOutputTps(detailRecord);
           if (!hasExplicitCounts) {
             if (detailRecord?.failed === true) {
               existing.failureCount += 1;

@@ -4,8 +4,8 @@ import { Card } from '@/components/ui/Card';
 import type { UsagePayload } from '@/components/usage';
 import {
   calculateCost,
+  calculateOutputTps,
   extractFirstByteLatencyMs,
-  extractLatencyMs,
   extractTotalTokens,
   formatCompactNumber,
   formatDurationMs,
@@ -137,10 +137,7 @@ export function MonitorApiKeyStatsCard({
               totals.firstByteLatencySampleCount += 1;
             }
 
-            const latencyMs = extractLatencyMs(detailRecord);
-            const tokens = isRecord(detailRecord.tokens) ? detailRecord.tokens : null;
-            const outputTokens = toNonNegativeNumber(tokens?.output_tokens);
-            const tps = latencyMs && latencyMs > 0 ? outputTokens / (latencyMs / 1000) : null;
+            const tps = calculateOutputTps(detailRecord);
             if (tps !== null && Number.isFinite(tps) && tps >= 0) {
               totals.totalTps += tps;
               totals.tpsSampleCount += 1;

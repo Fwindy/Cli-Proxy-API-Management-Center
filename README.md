@@ -30,6 +30,8 @@
 - 增强请求事件明细：
   - 支持自动刷新（15s/30s/1m/5m）
   - 新增Tokens per second (TPS) 统计
+    - 计费与 TPS 共用输出 Token 口径：Gemini 原生、AI Studio、Antigravity、Vertex 原生和 Devin 按「输出 + 思考」计算；OpenAI、Anthropic 及 OpenAI 兼容通道的输出已包含思考，不重复相加。
+    - TPS 使用总请求耗时（包含首字延迟）为分母；汇总展示各次有效请求 TPS 的算术平均值。
   - 新增首字延迟统计
   - 点击每行前方的减号图标可以删除记录
   - 新增缓存命中率统计

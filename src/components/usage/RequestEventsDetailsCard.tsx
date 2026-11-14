@@ -30,10 +30,10 @@ import { buildSourceInfoMap, resolveSourceDisplay } from '@/utils/sourceResolver
 import { parseTimestampMs } from '@/utils/timestamp';
 import {
   calculateCacheHitRatio,
+  calculateOutputTps,
   collectUsageDetails,
   extractFirstByteLatencyMs,
   extractGenerationMs,
-  extractLatencyMs,
   extractTotalTokens,
   formatDurationMs,
   normalizeAuthIndex,
@@ -382,8 +382,7 @@ export function RequestEventsDetailsCard({
       const backendId = typeof detail.id === 'string' && detail.id.trim() ? detail.id.trim() : null;
       const firstByteLatencyMs = extractFirstByteLatencyMs(detail);
       const generationMs = extractGenerationMs(detail);
-      const latencyMs = extractLatencyMs(detail);
-      const tps = latencyMs && latencyMs > 0 ? outputTokens / (latencyMs / 1000) : null;
+      const tps = calculateOutputTps(detail);
       const thinking = detail.thinking ?? null;
       const thinkingEffort = normalizeThinkingText(detail.reasoning_effort);
       const thinkingLabel = thinkingEffort || formatThinkingLabel(thinking);
